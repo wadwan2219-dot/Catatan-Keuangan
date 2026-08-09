@@ -1,6 +1,6 @@
 /**
- * SaldoKu - Common Helpers & Storage Driver
- * Provides formatters, toast alerts, session guard, and Hybrid Data Engine.
+ * SaldoKu - Common Helpers & Cloud Engine (common.js)
+ * Formatters, toast alerts, session guard, and Cloud Firestore + LocalStorage sync.
  */
 
 // --------------------------------------------------------------------------
@@ -93,6 +93,9 @@ function setCurrentUser(userObj) {
 }
 
 function logoutUser() {
+  if (window.firebaseAuth) {
+    try { window.firebaseAuth.signOut(); } catch (e) {}
+  }
   localStorage.removeItem('saldoku_user_session');
   showToast('Anda telah keluar dari aplikasi.', 'info');
   setTimeout(() => {
@@ -109,7 +112,7 @@ function requireAuth() {
 }
 
 // --------------------------------------------------------------------------
-// 4. Hybrid Data Engine (Local Storage + Firebase Sync Ready)
+// 4. Data Storage Engine (Firestore DB + LocalStorage Fallback)
 // --------------------------------------------------------------------------
 const STORAGE_KEY_TABUNGAN = 'saldoku_data_tabungan';
 const STORAGE_KEY_BELANJA = 'saldoku_data_belanja';
@@ -195,8 +198,19 @@ function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
     tanggal: tanggal || getTodayString(),
     createdAt: new Date().toISOString()
   };
+
   list.unshift(newItem);
   saveRawTabungan(list);
+
+  // Firestore Sync if connected
+  if (window.firebaseDb && window.isFirebaseConnected()) {
+    try {
+      window.firebaseDb.collection('tabungan').doc(newItem.id).set(newItem);
+    } catch (e) {
+      console.warn('Firestore tabungan sync deferred:', e);
+    }
+  }
+
   return newItem;
 }
 
@@ -212,8 +226,19 @@ function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
     tanggal: tanggal || getTodayString(),
     createdAt: new Date().toISOString()
   };
+
   list.unshift(newItem);
   saveRawBelanja(list);
+
+  // Firestore Sync if connected
+  if (window.firebaseDb && window.isFirebaseConnected()) {
+    try {
+      window.firebaseDb.collection('belanja').doc(newItem.id).set(newItem);
+    } catch (e) {
+      console.warn('Firestore belanja sync deferred:', e);
+    }
+  }
+
   return newItem;
 }
 
@@ -250,9 +275,15 @@ function deleteTransactionItem(id, type) {
     let list = getRawTabungan();
     list = list.filter(item => item.id !== id);
     saveRawTabungan(list);
+    if (window.firebaseDb && window.isFirebaseConnected()) {
+      try { window.firebaseDb.collection('tabungan').doc(id).delete(); } catch(e){}
+    }
   } else if (type === 'belanja') {
     let list = getRawBelanja();
     list = list.filter(item => item.id !== id);
     saveRawBelanja(list);
+    if (window.firebaseDb && window.isFirebaseConnected()) {
+      try { window.firebaseDb.collection('belanja').doc(id).delete(); } catch(e){}
+    }
   }
 }
