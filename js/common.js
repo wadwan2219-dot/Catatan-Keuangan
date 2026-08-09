@@ -1,6 +1,6 @@
 /**
  * SaldoKu - Common Helpers & Firestore Cloud Engine (common.js)
- * Clean Real-Time Firestore Sync without dummy seed data when connected.
+ * Pure Live Database - Starts strictly from ZERO (Rp 0) for new accounts.
  */
 
 // --------------------------------------------------------------------------
@@ -76,7 +76,7 @@ function showToast(message, type = 'success') {
 }
 
 // --------------------------------------------------------------------------
-// 3. User Session Guard
+// 3. User Session Guard & Local Cache Cleanup
 // --------------------------------------------------------------------------
 function getCurrentUser() {
   const session = localStorage.getItem('saldoku_user_session');
@@ -97,6 +97,8 @@ function logoutUser() {
     try { window.firebaseAuth.signOut(); } catch (e) {}
   }
   localStorage.removeItem('saldoku_user_session');
+  localStorage.removeItem('saldoku_data_tabungan');
+  localStorage.removeItem('saldoku_data_belanja');
   showToast('Anda telah keluar dari aplikasi.', 'info');
   setTimeout(() => {
     window.location.href = 'index.html';
@@ -112,14 +114,25 @@ function requireAuth() {
 }
 
 // --------------------------------------------------------------------------
-// 4. Data Storage Engine (Pure Firestore Cloud DB + Local Cache)
+// 4. Data Storage Engine (Strict Zero Baseline)
 // --------------------------------------------------------------------------
 const STORAGE_KEY_TABUNGAN = 'saldoku_data_tabungan';
 const STORAGE_KEY_BELANJA = 'saldoku_data_belanja';
 
+function cleanDummySeedData(list) {
+  // Filters out old dummy seed items (e.g. tab_seed_1 or 1.000.000 dummy initial item)
+  return list.filter(item => item.id !== 'tab_seed_1' && item.id !== 'bel_seed_1' && !String(item.id).includes('_seed_'));
+}
+
 function getRawTabungan() {
   const raw = localStorage.getItem(STORAGE_KEY_TABUNGAN);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+  const list = JSON.parse(raw);
+  const cleaned = cleanDummySeedData(list);
+  if (cleaned.length !== list.length) {
+    saveRawTabungan(cleaned);
+  }
+  return cleaned;
 }
 
 function saveRawTabungan(list) {
@@ -128,7 +141,13 @@ function saveRawTabungan(list) {
 
 function getRawBelanja() {
   const raw = localStorage.getItem(STORAGE_KEY_BELANJA);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+  const list = JSON.parse(raw);
+  const cleaned = cleanDummySeedData(list);
+  if (cleaned.length !== list.length) {
+    saveRawBelanja(cleaned);
+  }
+  return cleaned;
 }
 
 function saveRawBelanja(list) {
