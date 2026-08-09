@@ -1,6 +1,6 @@
 /**
- * SaldoKu - Common Helpers & Firestore Cloud Sync Engine (common.js)
- * Formatters, toast alerts, session guard, and Real-Time Firestore Sync.
+ * SaldoKu - Common Helpers & Firestore Cloud Engine (common.js)
+ * Clean Real-Time Firestore Sync without dummy seed data when connected.
  */
 
 // --------------------------------------------------------------------------
@@ -112,7 +112,7 @@ function requireAuth() {
 }
 
 // --------------------------------------------------------------------------
-// 4. Data Storage Engine (Firestore Real-time DB + Local Storage Cache)
+// 4. Data Storage Engine (Pure Firestore Cloud DB + Local Cache)
 // --------------------------------------------------------------------------
 const STORAGE_KEY_TABUNGAN = 'saldoku_data_tabungan';
 const STORAGE_KEY_BELANJA = 'saldoku_data_belanja';
@@ -135,83 +135,52 @@ function saveRawBelanja(list) {
   localStorage.setItem(STORAGE_KEY_BELANJA, JSON.stringify(list));
 }
 
-// Seed default data if completely empty
-function initializeSeedData(userId) {
-  const currentSavings = getRawTabungan();
-  const currentExpenses = getRawBelanja();
-
-  if (currentSavings.length === 0 && currentExpenses.length === 0 && !window.isFirebaseConnected()) {
-    const defaultSavings = [
-      {
-        id: 'tab_seed_1',
-        user_id: userId,
-        jumlah: 1000000,
-        keterangan: 'Tabungan Awal / Gaji Bulan Ini',
-        tanggal: getTodayString(),
-        createdAt: new Date().toISOString()
-      }
-    ];
-    const defaultExpenses = [
-      {
-        id: 'bel_seed_1',
-        user_id: userId,
-        nama_item: 'Beli Beras 10kg',
-        jumlah: 150000,
-        kategori: 'Belanja Harian',
-        tanggal: getTodayString(),
-        createdAt: new Date().toISOString()
-      }
-    ];
-    saveRawTabungan(defaultSavings);
-    saveRawBelanja(defaultExpenses);
-  }
-}
-
 /**
- * Real-time Sync Engine: Pulls from Cloud Firestore & updates Local Storage Cache
- * Ensures all connected devices (Budi & Ani) see identical real-time balances!
+ * Real-time Firestore Cloud Sync:
+ * Subscribes to Cloud Firestore Database collections `tabungan` and `belanja`.
+ * Updates UI dynamically whenever any device inputs new data!
  */
-async function syncFirestoreData(onUpdateCallback) {
+function syncFirestoreData(onUpdateCallback) {
   if (!window.firebaseDb || !window.isFirebaseConnected()) {
     if (onUpdateCallback) onUpdateCallback();
     return;
   }
 
   try {
-    // 1. Sync Tabungan Collection from Cloud Firestore
+    // 1. Realtime Listener for Collection 'tabungan'
     window.firebaseDb.collection('tabungan').onSnapshot((snapshot) => {
       const cloudSavings = [];
-      snapshot.forEach(doc => cloudSavings.push(doc.data()));
-      if (cloudSavings.length > 0) {
-        saveRawTabungan(cloudSavings);
-      }
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        cloudSavings.push({ id: doc.id, ...d });
+      });
+      saveRawTabungan(cloudSavings);
       if (onUpdateCallback) onUpdateCallback();
     }, err => {
       console.warn('Firestore tabungan stream error:', err);
     });
 
-    // 2. Sync Belanja Collection from Cloud Firestore
+    // 2. Realtime Listener for Collection 'belanja'
     window.firebaseDb.collection('belanja').onSnapshot((snapshot) => {
       const cloudExpenses = [];
-      snapshot.forEach(doc => cloudExpenses.push(doc.data()));
-      if (cloudExpenses.length > 0) {
-        saveRawBelanja(cloudExpenses);
-      }
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        cloudExpenses.push({ id: doc.id, ...d });
+      });
+      saveRawBelanja(cloudExpenses);
       if (onUpdateCallback) onUpdateCallback();
     }, err => {
       console.warn('Firestore belanja stream error:', err);
     });
 
   } catch (err) {
-    console.warn('Error connecting to Firestore real-time sync:', err);
+    console.warn('Firestore subscription failed:', err);
     if (onUpdateCallback) onUpdateCallback();
   }
 }
 
-// Compute Balances for user/shared space
+// Compute Balances dynamically from active database
 function calculateUserBalance(userId) {
-  initializeSeedData(userId);
-  
   const savings = getRawTabungan();
   const expenses = getRawBelanja();
 
@@ -228,10 +197,9 @@ function calculateUserBalance(userId) {
   };
 }
 
-// Add Tabungan (Income)
+// Add Tabungan (Income) directly to Firebase Cloud Firestore DB
 async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
   const newItem = {
-    id: 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     user_id: userId,
     jumlah: Number(jumlah),
     keterangan: keterangan || 'Tabungan Masuk',
@@ -239,27 +207,29 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
     createdAt: new Date().toISOString()
   };
 
-  // Update Local Cache
+  if (window.firebaseDb && window.isFirebaseConnected()) {
+    try {
+      const docRef = await window.firebaseDb.collection('tabungan').add(newItem);
+      newItem.id = docRef.id;
+    } catch (e) {
+      console.warn('Firestore write tabungan fallback:', e);
+      newItem.id = 'tab_' + Date.now();
+    }
+  } else {
+    newItem.id = 'tab_' + Date.now();
+  }
+
+  // Update Local Storage Cache
   const list = getRawTabungan();
   list.unshift(newItem);
   saveRawTabungan(list);
 
-  // Firestore Sync to Cloud DB
-  if (window.firebaseDb && window.isFirebaseConnected()) {
-    try {
-      await window.firebaseDb.collection('tabungan').doc(newItem.id).set(newItem);
-    } catch (e) {
-      console.warn('Firestore tabungan write error:', e);
-    }
-  }
-
   return newItem;
 }
 
-// Add Belanja (Expense)
+// Add Belanja (Expense) directly to Firebase Cloud Firestore DB
 async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
   const newItem = {
-    id: 'bel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     user_id: userId,
     nama_item: nama_item,
     jumlah: Number(jumlah),
@@ -268,27 +238,28 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
     createdAt: new Date().toISOString()
   };
 
-  // Update Local Cache
+  if (window.firebaseDb && window.isFirebaseConnected()) {
+    try {
+      const docRef = await window.firebaseDb.collection('belanja').add(newItem);
+      newItem.id = docRef.id;
+    } catch (e) {
+      console.warn('Firestore write belanja fallback:', e);
+      newItem.id = 'bel_' + Date.now();
+    }
+  } else {
+    newItem.id = 'bel_' + Date.now();
+  }
+
+  // Update Local Storage Cache
   const list = getRawBelanja();
   list.unshift(newItem);
   saveRawBelanja(list);
-
-  // Firestore Sync to Cloud DB
-  if (window.firebaseDb && window.isFirebaseConnected()) {
-    try {
-      await window.firebaseDb.collection('belanja').doc(newItem.id).set(newItem);
-    } catch (e) {
-      console.warn('Firestore belanja write error:', e);
-    }
-  }
 
   return newItem;
 }
 
 // Get All Transactions Merged & Sorted
 function getAllTransactions(userId) {
-  initializeSeedData(userId);
-
   const savings = getRawTabungan().map(t => ({
     ...t,
     type: 'tabungan',
@@ -308,7 +279,7 @@ function getAllTransactions(userId) {
   return combined;
 }
 
-// Delete Transaction
+// Delete Transaction from Cloud & Local
 async function deleteTransactionItem(id, type) {
   if (type === 'tabungan') {
     let list = getRawTabungan();
