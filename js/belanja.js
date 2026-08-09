@@ -20,15 +20,18 @@ document.addEventListener('DOMContentLoaded', () => {
     inputTanggal.value = getTodayString();
   }
 
-  // Load current sisa saldo
-  const currentStats = calculateUserBalance(user.uid);
-  if (valCurrentSaldo) {
-    valCurrentSaldo.textContent = formatRupiah(currentStats.sisaSaldo);
+  function reloadBalance() {
+    const currentStats = calculateUserBalance(user.uid);
+    if (valCurrentSaldo) {
+      valCurrentSaldo.textContent = formatRupiah(currentStats.sisaSaldo);
+    }
+    updatePreview();
   }
 
   // Live calculation preview & Insufficient balance check
   function updatePreview() {
-    const rawVal = parseRupiah(inputNominal.value);
+    const currentStats = calculateUserBalance(user.uid);
+    const rawVal = parseRupiah(inputNominal ? inputNominal.value : 0);
     const newTotal = currentStats.sisaSaldo - rawVal;
     
     if (previewNewSaldo) {
@@ -50,6 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Sync real-time Firestore DB
+  reloadBalance();
+  syncFirestoreData(() => reloadBalance());
+
   // Auto format currency on input
   if (inputNominal) {
     inputNominal.addEventListener('input', (e) => {
@@ -63,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Category Selector Buttons (Optional quick pickers)
+  // Category Selector Buttons
   const categoryChips = document.querySelectorAll('.chip-kategori');
   categoryChips.forEach(chip => {
     chip.addEventListener('click', () => {
@@ -76,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Submit Handler
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const namaItem = inputNamaItem.value.trim();
       const nominal = parseRupiah(inputNominal.value);
@@ -93,19 +100,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const currentStats = calculateUserBalance(user.uid);
+
       // Warn if user proceeds with deficit
       if (nominal > currentStats.sisaSaldo) {
         showToast('Catatan: Transaksi ini membuat saldo Anda minus/defisit!', 'warning');
       }
 
-      // Add to store
-      addBelanjaTransaction(user.uid, namaItem, nominal, kategori, tanggal);
+      // Add to store & Cloud Firestore DB
+      await addBelanjaTransaction(user.uid, namaItem, nominal, kategori, tanggal);
 
       showToast(`Pengeluaran ${namaItem} (${formatRupiah(nominal)}) telah dicatat! 🛒`, 'success');
 
       setTimeout(() => {
         window.location.href = 'dashboard.html';
-      }, 800);
+      }, 700);
     });
   }
 });

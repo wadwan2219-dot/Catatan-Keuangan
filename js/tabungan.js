@@ -1,6 +1,6 @@
 /**
  * SaldoKu - Input Tabungan Logic (tabungan.js)
- * Manages savings addition, preset buttons, live balance calculation, and submission.
+ * Manages savings addition, preset buttons, live balance calculation, and Firestore cloud sync.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,20 +18,27 @@ document.addEventListener('DOMContentLoaded', () => {
     inputTanggal.value = getTodayString();
   }
 
-  // Load current sisa saldo
-  const currentStats = calculateUserBalance(user.uid);
-  if (valCurrentSaldo) {
-    valCurrentSaldo.textContent = formatRupiah(currentStats.sisaSaldo);
+  function reloadBalance() {
+    const currentStats = calculateUserBalance(user.uid);
+    if (valCurrentSaldo) {
+      valCurrentSaldo.textContent = formatRupiah(currentStats.sisaSaldo);
+    }
+    updatePreview();
   }
 
   // Live calculation preview
   function updatePreview() {
-    const rawVal = parseRupiah(inputNominal.value);
+    const currentStats = calculateUserBalance(user.uid);
+    const rawVal = parseRupiah(inputNominal ? inputNominal.value : 0);
     const newTotal = currentStats.sisaSaldo + rawVal;
     if (previewNewSaldo) {
       previewNewSaldo.textContent = formatRupiah(newTotal);
     }
   }
+
+  // Sync real-time Firestore DB
+  reloadBalance();
+  syncFirestoreData(() => reloadBalance());
 
   // Auto format currency on input
   if (inputNominal) {
@@ -58,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Submit Handler
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nominal = parseRupiah(inputNominal.value);
       const keterangan = inputKeterangan.value.trim() || 'Tabungan Masuk';
@@ -69,14 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Add to store
-      addTabunganTransaction(user.uid, nominal, keterangan, tanggal);
+      // Add to store & Cloud Firestore DB
+      await addTabunganTransaction(user.uid, nominal, keterangan, tanggal);
 
       showToast(`Berhasil menambah tabungan sebesar ${formatRupiah(nominal)}! 💰`, 'success');
 
       setTimeout(() => {
         window.location.href = 'dashboard.html';
-      }, 800);
+      }, 700);
     });
   }
 });

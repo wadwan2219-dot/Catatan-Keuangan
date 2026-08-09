@@ -1,6 +1,6 @@
 /**
  * SaldoKu - Dashboard Logic (dashboard.js)
- * Computes balance stats, status badges, budget progress, and recent transactions feed.
+ * Real-time Firestore sync & balance metrics calculation.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,8 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Load Dashboard Data
+  // Load Initial Dashboard Data
   loadDashboardMetrics(user.uid);
+
+  // Subscribe to Real-Time Cloud Firestore Sync
+  syncFirestoreData(() => {
+    loadDashboardMetrics(user.uid);
+  });
 });
 
 function loadDashboardMetrics(userId) {

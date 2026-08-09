@@ -1,6 +1,6 @@
 /**
  * SaldoKu - Transaction History Logic (riwayat.js)
- * Filtering, searching, transaction deletion, and CSV Export feature.
+ * Real-time Firestore sync, filtering, searching, deletion, and CSV Export.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -36,11 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
     const filtered = allTransactions.filter(t => {
-      // Type Filter
       if (filterType === 'tabungan' && t.type !== 'tabungan') return false;
       if (filterType === 'belanja' && t.type !== 'belanja') return false;
 
-      // Keyword Filter
       if (keyword) {
         const titleMatch = (t.title || '').toLowerCase().includes(keyword);
         const catMatch = (t.kategori || '').toLowerCase().includes(keyword);
@@ -94,12 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Attach delete listeners
     document.querySelectorAll('.btn-delete-trx').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const id = e.currentTarget.getAttribute('data-id');
         const type = e.currentTarget.getAttribute('data-type');
         
         if (confirm('Apakah Anda yakin ingin menghapus transaksi ini? Saldo akan dihitung ulang.')) {
-          deleteTransactionItem(id, type);
+          await deleteTransactionItem(id, type);
           showToast('Transaksi berhasil dihapus.', 'info');
           reloadData();
         }
@@ -140,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Initial Load
+  // Initial Load & Firestore Real-time listener
   reloadData();
+  syncFirestoreData(() => reloadData());
 });

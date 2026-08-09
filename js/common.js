@@ -1,6 +1,6 @@
 /**
- * SaldoKu - Common Helpers & Cloud Engine (common.js)
- * Formatters, toast alerts, session guard, and Cloud Firestore + LocalStorage sync.
+ * SaldoKu - Common Helpers & Firestore Cloud Sync Engine (common.js)
+ * Formatters, toast alerts, session guard, and Real-Time Firestore Sync.
  */
 
 // --------------------------------------------------------------------------
@@ -112,7 +112,7 @@ function requireAuth() {
 }
 
 // --------------------------------------------------------------------------
-// 4. Data Storage Engine (Firestore DB + LocalStorage Fallback)
+// 4. Data Storage Engine (Firestore Real-time DB + Local Storage Cache)
 // --------------------------------------------------------------------------
 const STORAGE_KEY_TABUNGAN = 'saldoku_data_tabungan';
 const STORAGE_KEY_BELANJA = 'saldoku_data_belanja';
@@ -135,15 +135,15 @@ function saveRawBelanja(list) {
   localStorage.setItem(STORAGE_KEY_BELANJA, JSON.stringify(list));
 }
 
-// Initialize seed data if empty
+// Seed default data if completely empty
 function initializeSeedData(userId) {
   const currentSavings = getRawTabungan();
   const currentExpenses = getRawBelanja();
 
-  if (currentSavings.length === 0 && currentExpenses.length === 0) {
+  if (currentSavings.length === 0 && currentExpenses.length === 0 && !window.isFirebaseConnected()) {
     const defaultSavings = [
       {
-        id: 'tab_' + Date.now() + '_1',
+        id: 'tab_seed_1',
         user_id: userId,
         jumlah: 1000000,
         keterangan: 'Tabungan Awal / Gaji Bulan Ini',
@@ -153,7 +153,7 @@ function initializeSeedData(userId) {
     ];
     const defaultExpenses = [
       {
-        id: 'bel_' + Date.now() + '_1',
+        id: 'bel_seed_1',
         user_id: userId,
         nama_item: 'Beli Beras 10kg',
         jumlah: 150000,
@@ -167,12 +167,53 @@ function initializeSeedData(userId) {
   }
 }
 
-// Compute Balances for user
+/**
+ * Real-time Sync Engine: Pulls from Cloud Firestore & updates Local Storage Cache
+ * Ensures all connected devices (Budi & Ani) see identical real-time balances!
+ */
+async function syncFirestoreData(onUpdateCallback) {
+  if (!window.firebaseDb || !window.isFirebaseConnected()) {
+    if (onUpdateCallback) onUpdateCallback();
+    return;
+  }
+
+  try {
+    // 1. Sync Tabungan Collection from Cloud Firestore
+    window.firebaseDb.collection('tabungan').onSnapshot((snapshot) => {
+      const cloudSavings = [];
+      snapshot.forEach(doc => cloudSavings.push(doc.data()));
+      if (cloudSavings.length > 0) {
+        saveRawTabungan(cloudSavings);
+      }
+      if (onUpdateCallback) onUpdateCallback();
+    }, err => {
+      console.warn('Firestore tabungan stream error:', err);
+    });
+
+    // 2. Sync Belanja Collection from Cloud Firestore
+    window.firebaseDb.collection('belanja').onSnapshot((snapshot) => {
+      const cloudExpenses = [];
+      snapshot.forEach(doc => cloudExpenses.push(doc.data()));
+      if (cloudExpenses.length > 0) {
+        saveRawBelanja(cloudExpenses);
+      }
+      if (onUpdateCallback) onUpdateCallback();
+    }, err => {
+      console.warn('Firestore belanja stream error:', err);
+    });
+
+  } catch (err) {
+    console.warn('Error connecting to Firestore real-time sync:', err);
+    if (onUpdateCallback) onUpdateCallback();
+  }
+}
+
+// Compute Balances for user/shared space
 function calculateUserBalance(userId) {
   initializeSeedData(userId);
   
-  const savings = getRawTabungan().filter(t => t.user_id === userId);
-  const expenses = getRawBelanja().filter(b => b.user_id === userId);
+  const savings = getRawTabungan();
+  const expenses = getRawBelanja();
 
   const totalTabungan = savings.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
   const totalBelanja = expenses.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
@@ -188,8 +229,7 @@ function calculateUserBalance(userId) {
 }
 
 // Add Tabungan (Income)
-function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
-  const list = getRawTabungan();
+async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
   const newItem = {
     id: 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     user_id: userId,
@@ -199,15 +239,17 @@ function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
     createdAt: new Date().toISOString()
   };
 
+  // Update Local Cache
+  const list = getRawTabungan();
   list.unshift(newItem);
   saveRawTabungan(list);
 
-  // Firestore Sync if connected
+  // Firestore Sync to Cloud DB
   if (window.firebaseDb && window.isFirebaseConnected()) {
     try {
-      window.firebaseDb.collection('tabungan').doc(newItem.id).set(newItem);
+      await window.firebaseDb.collection('tabungan').doc(newItem.id).set(newItem);
     } catch (e) {
-      console.warn('Firestore tabungan sync deferred:', e);
+      console.warn('Firestore tabungan write error:', e);
     }
   }
 
@@ -215,8 +257,7 @@ function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
 }
 
 // Add Belanja (Expense)
-function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
-  const list = getRawBelanja();
+async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
   const newItem = {
     id: 'bel_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
     user_id: userId,
@@ -227,15 +268,17 @@ function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
     createdAt: new Date().toISOString()
   };
 
+  // Update Local Cache
+  const list = getRawBelanja();
   list.unshift(newItem);
   saveRawBelanja(list);
 
-  // Firestore Sync if connected
+  // Firestore Sync to Cloud DB
   if (window.firebaseDb && window.isFirebaseConnected()) {
     try {
-      window.firebaseDb.collection('belanja').doc(newItem.id).set(newItem);
+      await window.firebaseDb.collection('belanja').doc(newItem.id).set(newItem);
     } catch (e) {
-      console.warn('Firestore belanja sync deferred:', e);
+      console.warn('Firestore belanja write error:', e);
     }
   }
 
@@ -246,23 +289,19 @@ function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
 function getAllTransactions(userId) {
   initializeSeedData(userId);
 
-  const savings = getRawTabungan()
-    .filter(t => t.user_id === userId)
-    .map(t => ({
-      ...t,
-      type: 'tabungan',
-      title: t.keterangan || 'Tabungan',
-      amount: t.jumlah
-    }));
+  const savings = getRawTabungan().map(t => ({
+    ...t,
+    type: 'tabungan',
+    title: t.keterangan || 'Tabungan',
+    amount: t.jumlah
+  }));
 
-  const expenses = getRawBelanja()
-    .filter(b => b.user_id === userId)
-    .map(b => ({
-      ...b,
-      type: 'belanja',
-      title: b.nama_item || 'Belanja',
-      amount: b.jumlah
-    }));
+  const expenses = getRawBelanja().map(b => ({
+    ...b,
+    type: 'belanja',
+    title: b.nama_item || 'Belanja',
+    amount: b.jumlah
+  }));
 
   const combined = [...savings, ...expenses];
   combined.sort((a, b) => new Date(b.tanggal + 'T' + (b.createdAt ? b.createdAt.substring(11,19) : '00:00:00')) - new Date(a.tanggal + 'T' + (a.createdAt ? a.createdAt.substring(11,19) : '00:00:00')));
@@ -270,20 +309,20 @@ function getAllTransactions(userId) {
 }
 
 // Delete Transaction
-function deleteTransactionItem(id, type) {
+async function deleteTransactionItem(id, type) {
   if (type === 'tabungan') {
     let list = getRawTabungan();
     list = list.filter(item => item.id !== id);
     saveRawTabungan(list);
     if (window.firebaseDb && window.isFirebaseConnected()) {
-      try { window.firebaseDb.collection('tabungan').doc(id).delete(); } catch(e){}
+      try { await window.firebaseDb.collection('tabungan').doc(id).delete(); } catch(e){}
     }
   } else if (type === 'belanja') {
     let list = getRawBelanja();
     list = list.filter(item => item.id !== id);
     saveRawBelanja(list);
     if (window.firebaseDb && window.isFirebaseConnected()) {
-      try { window.firebaseDb.collection('belanja').doc(id).delete(); } catch(e){}
+      try { await window.firebaseDb.collection('belanja').doc(id).delete(); } catch(e){}
     }
   }
 }
