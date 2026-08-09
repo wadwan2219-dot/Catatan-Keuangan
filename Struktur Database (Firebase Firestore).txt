@@ -1,0 +1,26 @@
+📦 Firebase Firestore
+│
+├── 👤 users/
+│   ├── user1/
+│   │   ├── nama: "Budi"
+│   │   ├── email: "budi@gmail.com"
+│   │   └── saldo_awal: 1000000
+│   │
+│   └── user2/
+│       ├── nama: "Ani"
+│       ├── email: "ani@gmail.com"
+│       └── saldo_awal: 500000
+│
+├── 💰 tabungan/
+│   ├── {tabungan_id}/
+│   │   ├── user_id: "user1"
+│   │   ├── jumlah: 1000000
+│   │   ├── keterangan: "Gaji bulan ini"
+│   │   └── tanggal: "2026-08-09"
+│
+└── 🛒 belanja/
+    ├── {belanja_id}/
+    │   ├── user_id: "user1"
+    │   ├── nama_item: "Beli beras"
+    │   ├── jumlah: 150000
+    │   └── tanggal: "2026-08-09"

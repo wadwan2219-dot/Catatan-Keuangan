@@ -1,0 +1,19 @@
+📁 saldoku/
+│
+├── 📄 index.html          → Halaman Login / Register
+├── 📄 dashboard.html      → Halaman Utama setelah login
+├── 📄 tabungan.html       → Halaman input tabungan
+├── 📄 belanja.html        → Halaman input belanja
+├── 📄 riwayat.html        → Halaman riwayat transaksi
+│
+├── 📁 css/
+│   └── style.css          → Custom styling
+│
+├── 📁 js/
+│   ├── firebase-config.js → Konfigurasi Firebase
+│   ├── auth.js            → Login & Register
+│   ├── tabungan.js        → Logic tabungan
+│   ├── belanja.js         → Logic belanja
+│   └── dashboard.js       → Logic dashboard
+│
+└── 📄 README.md           → Dokumentasi proyek

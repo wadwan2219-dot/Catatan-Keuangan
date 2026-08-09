@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaldoKu - Login & Register | Aplikasi Manajemen Keuangan</title>
+  <meta name="description" content="Aplikasi pencatat tabungan dan kelola pengeluaran harian berbasis web dengan kalkulasi saldo otomatis.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+  <!-- Main Auth Card Container -->
+  <div class="w-full max-w-md glass-card p-6 sm:p-8 animate-fade-in relative overflow-hidden">
+    
+    <!-- Top Decorative Glow -->
+    <div class="absolute -top-20 -left-20 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- App Logo Header -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-0.5 shadow-lg shadow-indigo-500/30 mb-3">
+        <div class="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-3xl">
+          💳
+        </div>
+      </div>
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">Saldo<span class="text-emerald-400">Ku</span></h1>
+      <p class="text-xs text-slate-400 mt-1">Aplikasi Manajemen Keuangan & Tabungan Sederhana</p>
+    </div>
+
+    <!-- Form Type Tabs -->
+    <div class="flex bg-slate-900/80 p-1 rounded-xl mb-6 border border-slate-800">
+      <button id="tab-login" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-indigo-600 text-white shadow-sm">
+        🔑 Masuk Akun
+      </button>
+      <button id="tab-register" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-white">
+        ✨ Buat Akun Baru
+      </button>
+    </div>
+
+    <!-- 1. LOGIN FORM -->
+    <form id="form-login" class="space-y-4">
+      <div>
+        <label for="login-email" class="block text-xs font-semibold text-slate-300 mb-1.5">Email Pengguna</label>
+        <input type="email" id="login-email" required placeholder="nama@email.com"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <div>
+        <label for="login-password" class="block text-xs font-semibold text-slate-300 mb-1.5">Kata Sandi</label>
+        <input type="password" id="login-password" required placeholder="••••••••"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <button type="submit" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-500/25 transition-all transform active:scale-95">
+        Masuk Ke SaldoKu 🚀
+      </button>
+    </form>
+
+    <!-- 2. REGISTER FORM (Hidden by default) -->
+    <form id="form-register" class="space-y-4 hidden">
+      <div>
+        <label for="reg-nama" class="block text-xs font-semibold text-slate-300 mb-1.5">Nama Lengkap</label>
+        <input type="text" id="reg-nama" placeholder="Contoh: Budi"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <div>
+        <label for="reg-email" class="block text-xs font-semibold text-slate-300 mb-1.5">Email Pengguna</label>
+        <input type="email" id="reg-email" placeholder="nama@email.com"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <div>
+        <label for="reg-password" class="block text-xs font-semibold text-slate-300 mb-1.5">Kata Sandi</label>
+        <input type="password" id="reg-password" placeholder="••••••••"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <div>
+        <label for="reg-confirm-password" class="block text-xs font-semibold text-slate-300 mb-1.5">Konfirmasi Kata Sandi</label>
+        <input type="password" id="reg-confirm-password" placeholder="••••••••"
+               class="w-full px-4 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+      </div>
+      <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-500/25 transition-all transform active:scale-95">
+        Daftar Akun Baru ✨
+      </button>
+    </form>
+
+    <!-- Divider -->
+    <div class="relative my-6 text-center">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+      <span class="relative bg-slate-900/90 px-3 text-[11px] font-semibold uppercase text-slate-500 tracking-wider">Atau Uji Coba Cepat</span>
+    </div>
+
+    <!-- DEMO LOGIN BUTTONS -->
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" id="btn-demo-budi" class="py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center gap-2 transition-all">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        Login "Budi" 👤
+      </button>
+      <button type="button" id="btn-demo-ani" class="py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center justify-center gap-2 transition-all">
+        <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+        Login "Ani" 👩‍🦰
+      </button>
+    </div>
+
+    <!-- Footer Note -->
+    <div class="mt-6 text-center">
+      <p class="text-[11px] text-slate-500">
+        Project Firebase: <span class="text-slate-400 font-mono">saldoku-app</span>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>
