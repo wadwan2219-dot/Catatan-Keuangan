@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaldoKu - Hutang Bersih (Iwan & Wadda)</title>
+  <meta name="description" content="Pencatatan dan kalkulasi hutang bersih otomatis antara Iwan dan Wadda.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="pb-24 sm:pb-16">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 backdrop-blur-md bg-slate-900/80 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="dashboard.html" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-400 flex items-center justify-center text-lg shadow-md shadow-indigo-500/20">
+          💳
+        </div>
+        <span class="text-lg font-bold text-white tracking-tight">Saldo<span class="text-emerald-400">Ku</span></span>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-5">
+        <a href="dashboard.html" class="nav-link text-sm text-slate-300 hover:text-white">Dashboard</a>
+        <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white">Tambah Tabungan ➕</a>
+        <a href="belanja.html" class="nav-link text-sm text-slate-300 hover:text-white">Tambah Belanja ➖</a>
+        <a href="hutang.html" class="nav-link active text-sm text-indigo-400 font-semibold">Hutang Bersih 🤝</a>
+        <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white">Riwayat Transaksi 📝</a>
+      </nav>
+
+      <!-- User Profile & Logout -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60">
+          <div id="user-avatar-initial" class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+            U
+          </div>
+          <div class="hidden sm:block text-left">
+            <p id="user-display-name" class="text-xs font-bold text-slate-200 leading-tight">Pengguna</p>
+            <p id="user-display-email" class="text-[10px] text-slate-400 leading-tight">user@email.com</p>
+          </div>
+        </div>
+        <button id="btn-logout" title="Keluar Akun" class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold">
+          🚪 <span class="hidden sm:inline">Keluar</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Bottom Nav -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-3 py-2 flex justify-around">
+    <a href="dashboard.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
+      <span class="text-lg">🏠</span>
+      <span class="text-[10px] font-medium">Home</span>
+    </a>
+    <a href="tabungan.html" class="flex flex-col items-center text-slate-400 hover:text-emerald-400">
+      <span class="text-lg">💰</span>
+      <span class="text-[10px] font-medium">Tabungan</span>
+    </a>
+    <a href="belanja.html" class="flex flex-col items-center text-slate-400 hover:text-rose-400">
+      <span class="text-lg">🛒</span>
+      <span class="text-[10px] font-medium">Belanja</span>
+    </a>
+    <a href="hutang.html" class="flex flex-col items-center text-indigo-400 font-bold">
+      <span class="text-lg">🤝</span>
+      <span class="text-[10px] font-semibold">Hutang</span>
+    </a>
+    <a href="riwayat.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
+      <span class="text-lg">📝</span>
+      <span class="text-[10px] font-medium">Riwayat</span>
+    </a>
+  </div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white">Hutang Bersih 🤝</h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">Catat kewajiban antara <strong>Iwan</strong> dan <strong>Wadda</strong> dengan netting dua arah otomatis.</p>
+      </div>
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Terpisah dari Kas Bersama</span>
+      </div>
+    </div>
+
+    <!-- 1. RINGKASAN POSISI HUTANG BERSIH (HERO SUMMARY) -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Posisi Hutang Saat Ini</span>
+        <span id="badge-debt-status" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          Memuat...
+        </span>
+      </div>
+      <div class="mt-2">
+        <h2 id="text-debt-position" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          Menghitung posisi hutang...
+        </h2>
+        <p class="text-xs text-slate-400 mt-1.5">
+          Posisi dihitung otomatis dari seluruh entri aktif tanpa mempengaruhi saldo kas tabungan bersama.
+        </p>
+      </div>
+    </div>
+
+    <!-- 2. FORM PENCATATAN ENTRI HUTANG / PEMBAYARAN -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+      <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+        <span>✍️</span> Catat Entri Baru
+      </h3>
+
+      <form id="form-debt" class="space-y-5">
+        
+        <!-- Pilihan Jenis: Hutang Baru vs Pembayaran -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2">Jenis Transaksi</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="relative flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-800/60 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-600/10 has-[:checked]:text-indigo-400">
+              <input type="radio" name="debt-kind" value="debt" checked class="sr-only">
+              <span class="text-xs font-bold flex items-center gap-2">
+                <span>🤝</span> Hutang Baru
+              </span>
+            </label>
+            <label class="relative flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-800/60 transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-600/10 has-[:checked]:text-emerald-400">
+              <input type="radio" name="debt-kind" value="payment" class="sr-only">
+              <span class="text-xs font-bold flex items-center gap-2">
+                <span>💸</span> Pembayaran / Cicil
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Pilihan Pihak Berhutang / Pihak yang Membayar -->
+        <div>
+          <label id="label-debtor-party" class="block text-xs font-semibold text-slate-300 mb-2">Siapa yang Berhutang?</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="relative flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-800/60 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-600/20 has-[:checked]:text-white">
+              <input type="radio" name="debtor-party" value="iwan" checked class="sr-only">
+              <div class="text-center">
+                <p class="text-sm font-bold">👤 Iwan</p>
+                <p id="sublabel-iwan" class="text-[11px] text-slate-400 mt-0.5">berhutang ke Wadda</p>
+              </div>
+            </label>
+            <label class="relative flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-800/60 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-600/20 has-[:checked]:text-white">
+              <input type="radio" name="debtor-party" value="wadda" class="sr-only">
+              <div class="text-center">
+                <p class="text-sm font-bold">👩‍🦰 Wadda</p>
+                <p id="sublabel-wadda" class="text-[11px] text-slate-400 mt-0.5">berhutang ke Iwan</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Nominal Input & Presets -->
+        <div>
+          <label for="input-debt-amount" class="block text-xs font-semibold text-slate-300 mb-1.5">
+            Nominal Transaksi (Rp)
+          </label>
+          <div class="relative">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">Rp</span>
+            <input type="text" id="input-debt-amount" required placeholder="0" autocomplete="off"
+                   class="w-full pl-12 pr-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold text-lg placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+          </div>
+
+          <!-- Preset Quick Buttons -->
+          <div class="flex flex-wrap gap-2 mt-2">
+            <button type="button" class="preset-debt px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300" data-amount="10000">+10 rb</button>
+            <button type="button" class="preset-debt px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300" data-amount="25000">+25 rb</button>
+            <button type="button" class="preset-debt px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300" data-amount="50000">+50 rb</button>
+            <button type="button" class="preset-debt px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300" data-amount="100000">+100 rb</button>
+          </div>
+        </div>
+
+        <!-- Tanggal & Catatan -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="input-debt-date" class="block text-xs font-semibold text-slate-300 mb-1.5">Tanggal</label>
+            <input type="date" id="input-debt-date" required
+                   class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+          </div>
+          <div>
+            <label for="input-debt-note" class="block text-xs font-semibold text-slate-300 mb-1.5">Catatan / Keperluan (Opsional)</label>
+            <input type="text" id="input-debt-note" maxlength="120" placeholder="Contoh: Talangan makan siang"
+                   class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+          </div>
+        </div>
+
+        <!-- Live Preview Notice Box -->
+        <div id="box-preview-simulation" class="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 text-xs text-slate-300 flex items-start gap-2.5">
+          <span class="text-base leading-none">💡</span>
+          <div>
+            <span class="font-semibold text-slate-200">Simulasi Posisi: </span>
+            <span id="text-preview-simulation">Masukkan nominal untuk melihat simulasi posisi akhir.</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btn-submit-debt"
+                class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2">
+          <span>💾</span>
+          <span id="btn-submit-text">Simpan Entri Hutang</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- 3. RIWAYAT LEDGER HUTANG -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+      
+      <!-- Filter & Search Toolbar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span>📜</span> Riwayat Ledger Hutang
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Catatan lengkap seluruh transaksi, pembayaran, dan pembatalan.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="filter-debt-kind" class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="all">Semua Entri</option>
+            <option value="debt">Hutang Saja</option>
+            <option value="payment">Pembayaran Saja</option>
+            <option value="reversal">Pembatalan Saja</option>
+          </select>
+
+          <input type="text" id="search-debt-keyword" placeholder="Cari catatan..."
+                 class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <!-- Table Wrapper -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <th class="py-3 px-3">Tanggal</th>
+              <th class="py-3 px-3">Jenis</th>
+              <th class="py-3 px-3">Pihak</th>
+              <th class="py-3 px-3">Nominal</th>
+              <th class="py-3 px-3">Catatan</th>
+              <th class="py-3 px-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="table-debt-body" class="divide-y divide-slate-800/60 text-xs">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div id="debt-empty-state" class="hidden text-center py-10 text-slate-400">
+        <p class="text-3xl mb-2">🤝</p>
+        <p class="text-sm font-medium text-slate-300">Belum ada catatan hutang</p>
+        <p class="text-xs text-slate-500 mt-1">Gunakan formulir di atas untuk mencatat kewajiban hutang atau pembayaran pertama.</p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 4. ACCESSIBLE REVERSAL MODAL DIALOG (Non-window.confirm) -->
+  <div id="modal-reversal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in"
+         role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg">
+          ⚠️
+        </div>
+        <div>
+          <h4 id="modal-title" class="text-sm font-bold text-white">Batalkan Entri Ini?</h4>
+          <p class="text-xs text-slate-400">Jejak audit akan dipertahankan dengan membuat entri pembalik (reversal).</p>
+        </div>
+      </div>
+
+      <div id="modal-target-summary" class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300 space-y-1">
+        <!-- Target Entry Details -->
+      </div>
+
+      <div>
+        <label for="input-reversal-reason" class="block text-xs font-semibold text-slate-300 mb-1">Alasan Pembatalan (Opsional)</label>
+        <input type="text" id="input-reversal-reason" placeholder="Contoh: Salah input nominal"
+               class="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button type="button" id="btn-cancel-modal" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-all">
+          Batal
+        </button>
+        <button type="button" id="btn-confirm-reversal" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-md transition-all">
+          Ya, Batalkan Entri Ini
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JavaScript Modules in proper dependency order -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/debt-engine.js"></script>
+  <script src="js/debt-service.js"></script>
+  <script src="js/hutang.js"></script>
+</body>
+</html>

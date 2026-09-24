@@ -8,9 +8,15 @@ Aplikasi web manajemen keuangan pribadi/bersama berbasis **HTML5**, **Tailwind C
 
 1. **Input Tabungan**: User mencatat saldo/uang tabungan awal atau pemasukan berkala.
 2. **Tambah Belanja**: User mencatat item & nominal belanja/pengeluaran harian.
-3. **Pengurangan Otomatis**:
-   $$\text{Saldo Akhir} = \text{Total Tabungan} - \text{Total Belanja}$$
-4. **Peringatan Saldo Menipis**: Peringatan otomatis ⚠️ jika total pengeluaran belanja melebihi sisa saldo yang tersedia.
+3. **Pengurangan Kas Otomatis**:
+   $$\text{Saldo Akhir Kas} = \text{Total Tabungan} - \text{Total Belanja}$$
+4. **Peringatan Saldo Menipis**: Peringatan otomatis ⚠️ jika total pengeluaran belanja melebihi sisa saldo kas yang tersedia.
+5. **Hutang Bersih (Iwan ⇄ Wadda)**: Pencatatan kewajiban hutang dan pembayaran antaranggota dengan netting dua arah otomatis:
+   - Nilai positif (+): Iwan berhutang kepada Wadda
+   - Nilai negatif (-): Wadda berhutang kepada Iwan
+   - Nilai nol (0): Lunas / Seimbang
+   - **Terpisah 100% dari Kas Bersama**: Pencatatan hutang tidak mempengaruhi saldo tabungan maupun belanja.
+   - **Append-Only Ledger**: Tidak ada hard delete; koreksi transaksi dilakukan via pembatalan (*reversal*).
 
 ---
 
@@ -19,26 +25,32 @@ Aplikasi web manajemen keuangan pribadi/bersama berbasis **HTML5**, **Tailwind C
 ```
 📁 saldoku/
 │
-├── 📄 index.html          → Halaman Login, Register & Akses Demo Instant
-├── 📄 dashboard.html      → Halaman Utama (Ringkasan Saldo & Shortcut Aksi)
+├── 📄 index.html          → Halaman Login, Register & Akses Demo Instan (Iwan & Wadda)
+├── 📄 dashboard.html      → Halaman Utama (Ringkasan Saldo, Hutang Bersih & Shortcut)
 ├── 📄 tabungan.html       → Form Input Tabungan & Preset Nominal Cepat
 ├── 📄 belanja.html        → Form Input Belanja & Warning Alert Saldo Kurang
-├── 📄 riwayat.html        → Rekap Riwayat Transaksi, Filter & Export CSV
+├── 📄 hutang.html         → Form Input Hutang/Bayar, Status Netting & Riwayat Ledger
+├── 📄 riwayat.html        → Rekap Riwayat Transaksi (Kas & Hutang), Filter & Export CSV
 │
 ├── 📁 css/
-│   └── style.css          → Modern Dark Glassmorphic Styling & Animations
+│   └── style.css          → Modern Dark Glassmorphic Styling, Accessibility & Modal
 │
 ├── 📁 js/
 │   ├── firebase-config.js → Initialisasi Firebase (Project: saldoku-app)
 │   ├── common.js          → Format Rupiah, Toast Alerts, Auth Guard & Storage Driver
-│   ├── auth.js            → Logic Auth Login, Register & Mode Demo
-│   ├── dashboard.js       → Metrics Saldo Realtime & Feed 5 Transaksi Terbaru
+│   ├── auth.js            → Logic Auth Login, Register & Mode Demo (Iwan & Wadda)
+│   ├── debt-engine.js     → Pure Math/Logic Engine Netting Dua Arah & Validasi
+│   ├── debt-service.js    → Data Layer Firestore Zero-Config & LocalStorage Driver
+│   ├── dashboard.js       → Metrics Saldo Realtime, Ringkasan Hutang & Transaksi Terbaru
 │   ├── tabungan.js        → Logic Tambah Tabungan
 │   ├── belanja.js         → Logic Tambah Belanja
-│   └── riwayat.js         → Logic Filter, Hapus Transaksi & Export CSV
+│   ├── hutang.js          → Controller Halaman Hutang, Simulasi & Reversal Modal
+│   └── riwayat.js         → Unified Riwayat View Model (Kas + Hutang) & Export CSV
 │
+├── 📄 firestore.rules     → Aturan Keamanan Firebase Cloud Firestore Siap Pakai
 ├── 📄 TASK_LIST.md        → Check-list Langkah Manual vs Otomatis
-├── 📄 PLAN.md             → Dokumentasi Rencana Proyek
+├── 📄 PLAN.md             → Dokumentasi Rencana Awal Proyek
+├── 📄 PLAN_FITUR_HUTANG.md→ Spesifikasi & Panduan Desain Fitur Hutang Bersih
 └── 📄 README.md           → Dokumentasi Lengkap Proyek
 ```
 

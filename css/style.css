@@ -227,3 +227,22 @@ body {
   background: rgba(30, 58, 138, 0.9);
   border: 1px solid rgba(99, 102, 241, 0.5);
 }
+
+/* Accessible Modal & Dialog Styling */
+#modal-reversal {
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+#modal-reversal.hidden {
+  display: none;
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

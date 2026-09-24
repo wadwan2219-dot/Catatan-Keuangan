@@ -27,11 +27,41 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load Initial Dashboard Data
   loadDashboardMetrics(user.uid);
 
-  // Subscribe to Real-Time Cloud Firestore Sync
+  // Subscribe to Real-Time Cloud Firestore Sync for Cash Balances
   syncFirestoreData(() => {
     loadDashboardMetrics(user.uid);
   });
+
+  // Subscribe to Real-Time Net Debt Ledger (Isolated from Cash)
+  if (window.DebtService && window.DebtEngine) {
+    window.DebtService.subscribeEntries((debtEntries) => {
+      updateDashboardDebtSummary(debtEntries);
+    });
+  }
 });
+
+function updateDashboardDebtSummary(debtEntries) {
+  const valDebtElem = document.getElementById('val-dashboard-debt');
+  const badgeDebtElem = document.getElementById('badge-dashboard-debt');
+  if (!valDebtElem || !window.DebtEngine) return;
+
+  const net = window.DebtEngine.calculateNet(debtEntries);
+  const desc = window.DebtEngine.describePosition(net);
+
+  valDebtElem.textContent = desc.text;
+  if (desc.status === 'debt_a') {
+    valDebtElem.className = 'text-base sm:text-lg font-bold text-rose-400 mt-0.5';
+  } else if (desc.status === 'debt_b') {
+    valDebtElem.className = 'text-base sm:text-lg font-bold text-amber-400 mt-0.5';
+  } else {
+    valDebtElem.className = 'text-base sm:text-lg font-bold text-emerald-400 mt-0.5';
+  }
+
+  if (badgeDebtElem) {
+    badgeDebtElem.className = `px-2 py-0.5 text-[10px] font-bold rounded-full border ${desc.badgeClass}`;
+    badgeDebtElem.textContent = desc.shortText;
+  }
+}
 
 function loadDashboardMetrics(userId) {
   const stats = calculateUserBalance(userId);

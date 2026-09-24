@@ -176,10 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
       let registeredUsers = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
       
       // Default seed demo accounts if registry is fresh
-      if (registeredUsers.length === 0) {
+      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.uid === 'iwan')) {
         registeredUsers = [
-          { uid: 'user1', email: 'budi@gmail.com', passwordHash: btoa('123456'), nama: 'Budi' },
-          { uid: 'user2', email: 'ani@gmail.com', passwordHash: btoa('123456'), nama: 'Ani' }
+          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan' },
+          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Wadda' }
         ];
         localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
       }
@@ -193,40 +193,43 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      setCurrentUser({ uid: foundUser.uid, email: foundUser.email, nama: foundUser.nama });
+      const memberId = foundUser.memberId || (foundUser.nama && foundUser.nama.toLowerCase().includes('wadda') ? 'wadda' : 'iwan');
+      setCurrentUser({ uid: foundUser.uid, email: foundUser.email, nama: foundUser.nama, memberId });
       showToast(`Login Berhasil! Selamat datang, ${foundUser.nama} 👋`, 'success');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
     });
   }
 
   // ------------------------------------------------------------------------
-  // 3. DEMO LOGIN BUTTONS (Budi & Ani)
+  // 3. DEMO LOGIN BUTTONS (Iwan & Wadda)
   // ------------------------------------------------------------------------
-  const demoBudiBtn = document.getElementById('btn-demo-budi');
-  const demoAniBtn = document.getElementById('btn-demo-ani');
+  const demoIwanBtn = document.getElementById('btn-demo-iwan') || document.getElementById('btn-demo-budi');
+  const demoWaddaBtn = document.getElementById('btn-demo-wadda') || document.getElementById('btn-demo-ani');
 
-  if (demoBudiBtn) {
-    demoBudiBtn.addEventListener('click', () => {
+  if (demoIwanBtn) {
+    demoIwanBtn.addEventListener('click', () => {
       const user = {
-        uid: 'user1',
-        nama: 'Budi',
-        email: 'budi@gmail.com'
+        uid: 'iwan',
+        memberId: 'iwan',
+        nama: 'Iwan',
+        email: 'iwan@gmail.com'
       };
       setCurrentUser(user);
-      showToast('Masuk sebagai Mode Demo: Budi 👤', 'info');
+      showToast('Masuk sebagai Mode Demo: Iwan 👤', 'info');
       setTimeout(() => window.location.href = 'dashboard.html', 500);
     });
   }
 
-  if (demoAniBtn) {
-    demoAniBtn.addEventListener('click', () => {
+  if (demoWaddaBtn) {
+    demoWaddaBtn.addEventListener('click', () => {
       const user = {
-        uid: 'user2',
-        nama: 'Ani',
-        email: 'ani@gmail.com'
+        uid: 'wadda',
+        memberId: 'wadda',
+        nama: 'Wadda',
+        email: 'wadda@gmail.com'
       };
       setCurrentUser(user);
-      showToast('Masuk sebagai Mode Demo: Ani 👩‍🦰', 'info');
+      showToast('Masuk sebagai Mode Demo: Wadda 👩‍🦰', 'info');
       setTimeout(() => window.location.href = 'dashboard.html', 500);
     });
   }
