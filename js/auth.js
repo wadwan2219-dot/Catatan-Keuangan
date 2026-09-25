@@ -275,6 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (modalPinAuth) {
       modalPinAuth.classList.remove('hidden');
+      modalPinAuth.classList.add('flex');
       setTimeout(() => {
         if (inputPinCode) inputPinCode.focus();
       }, 100);
@@ -282,7 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closePinModal() {
-    if (modalPinAuth) modalPinAuth.classList.add('hidden');
+    if (modalPinAuth) {
+      modalPinAuth.classList.add('hidden');
+      modalPinAuth.classList.remove('flex');
+    }
     if (inputPinCode) inputPinCode.value = '';
   }
 
