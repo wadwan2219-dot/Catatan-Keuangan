@@ -84,14 +84,14 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           setCurrentUser(userData);
-          showToast(`Akun berhasil terdaftar! Selamat datang, ${nama} 🎉`, 'success');
-          setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
+          showToast('Pendaftaran akun berhasil.', 'success');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
           let errText = 'Gagal mendaftarkan akun.';
-          if (err.code === 'auth/email-already-in-use') errText = 'Email ini sudah terdaftar! Silakan Login.';
-          if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid!';
-          if (err.code === 'auth/weak-password') errText = 'Kata sandi terlalu lemah (minimal 6 karakter).';
+          if (err.code === 'auth/email-already-in-use') errText = 'Email ini sudah terdaftar. Silakan masuk.';
+          if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid.';
+          if (err.code === 'auth/weak-password') errText = 'Kata sandi minimal 6 karakter.';
           showToast(errText, 'error');
           return;
         }
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const existing = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
       
       if (existing) {
-        showToast('Email ini sudah terdaftar! Silakan masuk.', 'error');
+        showToast('Email ini sudah terdaftar. Silakan masuk.', 'error');
         return;
       }
 
@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
 
       setCurrentUser({ uid: newUser.uid, email: newUser.email, nama: newUser.nama });
-      showToast(`Akun berhasil terdaftar! Selamat datang, ${nama} 🎉`, 'success');
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
+      showToast('Pendaftaran akun berhasil.', 'success');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
     });
   }
 
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('login-password').value;
 
       if (!email || !password) {
-        showToast('Harap isi Email dan Password!', 'error');
+        showToast('Email dan kata sandi wajib diisi.', 'error');
         return;
       }
 
@@ -159,14 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           setCurrentUser(userObj);
-          showToast(`Login Berhasil! Selamat datang, ${userObj.nama} 👋`, 'success');
-          setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
+          showToast('Autentikasi berhasil.', 'success');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
-          let errText = 'Email atau Kata Sandi salah / Akun belum terdaftar!';
-          if (err.code === 'auth/user-not-found') errText = 'Akun tidak ditemukan! Silakan daftar akun baru.';
-          if (err.code === 'auth/wrong-password') errText = 'Kata sandi Anda salah!';
-          if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid!';
+          let errText = 'Email atau kata sandi tidak valid.';
+          if (err.code === 'auth/user-not-found') errText = 'Akun tidak ditemukan. Silakan lakukan pendaftaran.';
+          if (err.code === 'auth/wrong-password') errText = 'Kata sandi tidak sesuai.';
+          if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid.';
           showToast(errText, 'error');
           return;
         }
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
       if (!foundUser) {
-        showToast('AKSES DITOLAK: Email atau Password salah! Akun tidak terdaftar.', 'error');
+        showToast('Kredensial tidak valid. Silakan periksa email dan kata sandi.', 'error');
         return;
       }
 
@@ -206,8 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       setCurrentUser(jointUser);
-      showToast(`Login Berhasil! Selamat datang di Akun Bersama 👋`, 'success');
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
+      showToast('Berhasil masuk ke Akun Bersama.', 'success');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
     });
   }
 
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activePinTarget = target;
     const isIwan = target === 'iwan';
     if (pinModalTitle) {
-      pinModalTitle.textContent = isIwan ? 'PIN Mode Pribadi Iwan 👤' : 'PIN Mode Pribadi Wadda 👩‍🦰';
+      pinModalTitle.textContent = isIwan ? 'PIN Pribadi Iwan' : 'PIN Pribadi Wadda';
     }
     if (inputPinCode) {
       inputPinCode.value = '';
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const correctPin = PIN_CREDENTIALS[activePinTarget];
 
       if (enteredPin !== correctPin) {
-        showToast('PIN Salah! Akses ditolak ❌', 'error');
+        showToast('PIN tidak sesuai. Akses ditolak.', 'error');
         if (inputPinCode) {
           inputPinCode.value = '';
           inputPinCode.focus();
@@ -305,10 +305,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setCurrentUser(personalUser);
       closePinModal();
-      showToast(`PIN Benar! Masuk ke Mode Pribadi ${isIwan ? 'Iwan' : 'Wadda'} 👋`, 'success');
+      showToast(`Verifikasi berhasil. Membuka sesi ${isIwan ? 'Iwan' : 'Wadda'}.`, 'success');
       setTimeout(() => {
         window.location.href = 'dashboard.html';
-      }, 600);
+      }, 500);
     });
   }
 });

@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentNet = window.DebtEngine.calculateNet(allEntries);
     let noteFlip = '';
     if (kind === 'payment' && ((currentNet > 0 && simulatedNet < 0) || (currentNet < 0 && simulatedNet > 0))) {
-      noteFlip = ' ⚠️ (Perhatian: Pembayaran ini melebihi hutang dan membalik pihak yang berhutang!)';
+      noteFlip = ' (Perhatian: Pembayaran ini melebihi saldo hutang berjalan dan membalik posisi kewajiban)';
     }
 
     textSimulation.innerHTML = `Posisi baru akan menjadi: <strong class="text-white">${desc.text}</strong>${noteFlip}`;
@@ -370,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const note = inputNote ? inputNote.value.trim() : '';
 
       if (!amount || amount <= 0) {
-        showToast('Masukkan nominal transaksi yang valid!', 'error');
+        showToast('Nominal transaksi tidak valid.', 'error');
         return;
       }
 
@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentOwed = fromA ? Math.max(0, currentNet) : Math.max(0, -currentNet);
         if (amount > currentOwed && currentOwed > 0) {
           const confirmOverpay = confirm(
-            `Nominal pembayaran (${formatRupiah(amount)}) melebihi sisa hutang (${formatRupiah(currentOwed)}).\n\nIni akan membalik pihak yang berhutang. Apakah Anda yakin ingin melanjutkan?`
+            `Nominal pembayaran (${formatRupiah(amount)}) melampaui sisa kewajiban (${formatRupiah(currentOwed)}).\n\nPosisi hutang akan berbalik pihak. Lanjutkan transaksi?`
           );
           if (!confirmOverpay) return;
         }
@@ -394,10 +394,10 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         if (kind === 'debt') {
           await window.DebtService.createDebt({ fromMemberId, toMemberId, amount, note, occurredAt });
-          showToast(`Berhasil mencatat hutang sebesar ${formatRupiah(amount)}! 🤝`, 'success');
+          showToast(`Entri hutang sebesar ${formatRupiah(amount)} berhasil disimpan.`, 'success');
         } else {
           await window.DebtService.createPayment({ fromMemberId, toMemberId, amount, note, occurredAt });
-          showToast(`Berhasil mencatat pembayaran sebesar ${formatRupiah(amount)}! 💸`, 'success');
+          showToast(`Entri pembayaran sebesar ${formatRupiah(amount)} berhasil disimpan.`, 'success');
         }
 
         // Reset form inputs (preserve date)

@@ -26,9 +26,9 @@ let supabaseClient = null;
 if (typeof window.supabase !== 'undefined' && window.SUPABASE_CONFIG.url) {
   try {
     supabaseClient = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
-    console.log('✅ Supabase initialized successfully:', window.SUPABASE_CONFIG.url);
+    console.log('[Supabase] Initialized successfully:', window.SUPABASE_CONFIG.url);
   } catch (err) {
-    console.warn('⚠️ Supabase init error:', err);
+    console.warn('[Supabase] Init error:', err);
   }
 }
 

@@ -81,13 +81,13 @@ function loadDashboardMetrics(userId) {
   if (statusBadgeElem) {
     if (stats.sisaSaldo < 0) {
       statusBadgeElem.className = 'px-3 py-1 text-xs font-semibold rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
-      statusBadgeElem.innerHTML = '⚠️ Defisit Saldo';
+      statusBadgeElem.textContent = 'Defisit';
     } else if (stats.sisaSaldo < 100000 && stats.totalBelanja > 0) {
       statusBadgeElem.className = 'px-3 py-1 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
-      statusBadgeElem.innerHTML = '⚡ Saldo Menipis';
+      statusBadgeElem.textContent = 'Perhatian: Rendah';
     } else {
       statusBadgeElem.className = 'px-3 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-      statusBadgeElem.innerHTML = '✨ Saldo Sehat';
+      statusBadgeElem.textContent = 'Surplus';
     }
   }
 
@@ -124,7 +124,11 @@ function renderRecentTransactions(recentList) {
   if (recentList.length === 0) {
     container.innerHTML = `
       <div class="text-center py-8 text-slate-400">
-        <p class="text-3xl mb-2">💸</p>
+        <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-500 mx-auto flex items-center justify-center mb-2">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
         <p class="text-sm font-medium">Belum ada transaksi tercatat</p>
       </div>
     `;
@@ -137,13 +141,15 @@ function renderRecentTransactions(recentList) {
     const sign = isIncome ? '+' : '-';
     const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
     const badgeBg = isIncome ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-    const icon = isIncome ? '💰' : (t.kategori === 'Makanan' ? '🍔' : (t.kategori === 'Transportasi' ? '🚗' : '🛒'));
+    const iconSvg = isIncome
+      ? `<svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12" /></svg>`
+      : `<svg class="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6" /></svg>`;
 
     html += `
       <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:bg-slate-800/70 transition-all">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg ${isIncome ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
-            ${icon}
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center ${isIncome ? 'bg-emerald-500/20' : 'bg-rose-500/20'}">
+            ${iconSvg}
           </div>
           <div>
             <h4 class="text-sm font-semibold text-slate-200">${t.title}</h4>
@@ -154,7 +160,7 @@ function renderRecentTransactions(recentList) {
           <span class="text-sm font-bold ${amountColor}">${sign} ${formatRupiah(t.amount)}</span>
           <div>
             <span class="inline-block px-2 py-0.5 text-[10px] font-medium rounded-md border ${badgeBg}">
-              ${isIncome ? 'Tabungan ➕' : 'Belanja ➖'}
+              ${isIncome ? 'Tabungan' : 'Belanja'}
             </span>
           </div>
         </div>

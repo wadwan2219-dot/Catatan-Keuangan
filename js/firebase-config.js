@@ -40,9 +40,9 @@ if (typeof window.firebase !== 'undefined') {
     }
     firebaseAuth = firebase.auth();
     firebaseDb = firebase.firestore();
-    console.log('✅ Firebase initialized successfully for project:', window.FIREBASE_CONFIG.projectId);
+    console.log('[Firebase] Initialized successfully for project:', window.FIREBASE_CONFIG.projectId);
   } catch (err) {
-    console.warn('⚠️ Firebase init fallback mode active:', err.message);
+    console.warn('[Firebase] Init fallback mode active:', err.message);
   }
 }
 

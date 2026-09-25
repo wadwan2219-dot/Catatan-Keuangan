@@ -25,8 +25,10 @@
       
       <!-- Brand Logo -->
       <a href="dashboard.html" class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-400 flex items-center justify-center text-lg shadow-md shadow-indigo-500/20">
-          💳
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
         </div>
         <span class="text-lg font-bold text-white tracking-tight">Saldo<span class="text-emerald-400">Ku</span></span>
       </a>
@@ -34,16 +36,19 @@
       <!-- Navigation Links -->
       <nav class="hidden md:flex items-center gap-6">
         <a href="dashboard.html" class="nav-link text-sm text-slate-300 hover:text-white">Dashboard</a>
-        <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white">Tambah Tabungan ➕</a>
-        <a href="belanja.html" class="nav-link active text-sm">Tambah Belanja ➖</a>
-        <a href="hutang.html" class="nav-link text-sm text-slate-300 hover:text-white">Hutang Bersih 🤝</a>
-        <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white">Riwayat Transaksi 📝</a>
+        <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white">Tabungan</a>
+        <a href="belanja.html" class="nav-link active text-sm">Pengeluaran</a>
+        <a href="hutang.html" class="nav-link text-sm text-slate-300 hover:text-white">Hutang Bersih</a>
+        <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white">Riwayat</a>
       </nav>
 
       <!-- User Profile & Logout -->
       <div class="flex items-center gap-3">
-        <button id="btn-logout" title="Keluar Akun" class="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold">
-          🚪 <span class="hidden sm:inline">Keluar</span>
+        <button id="btn-logout" title="Keluar Akun" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span class="hidden sm:inline">Keluar</span>
         </button>
       </div>
 
@@ -53,23 +58,33 @@
   <!-- Mobile Bottom Nav -->
   <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 px-3 py-2 flex justify-around">
     <a href="dashboard.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
-      <span class="text-lg">🏠</span>
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
       <span class="text-[10px] font-semibold">Home</span>
     </a>
     <a href="tabungan.html" class="flex flex-col items-center text-slate-400 hover:text-emerald-400">
-      <span class="text-lg">💰</span>
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
       <span class="text-[10px] font-semibold">Tabungan</span>
     </a>
     <a href="belanja.html" class="flex flex-col items-center text-rose-400 font-bold">
-      <span class="text-lg">🛒</span>
-      <span class="text-[10px] font-semibold">Belanja</span>
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+      </svg>
+      <span class="text-[10px] font-semibold">Pengeluaran</span>
     </a>
     <a href="hutang.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
-      <span class="text-lg">🤝</span>
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
       <span class="text-[10px] font-semibold">Hutang</span>
     </a>
     <a href="riwayat.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
-      <span class="text-lg">📝</span>
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
       <span class="text-[10px] font-semibold">Riwayat</span>
     </a>
   </div>
@@ -81,10 +96,10 @@
     <div class="flex items-center justify-between">
       <div>
         <a href="dashboard.html" class="text-xs text-indigo-400 hover:underline mb-1 inline-block">← Kembali ke Dashboard</a>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2">
-          <span>🛒</span> Tambah Belanja / Pengeluaran
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          Catat Pengeluaran
         </h1>
-        <p class="text-xs sm:text-sm text-slate-400 mt-1">Sistem akan otomatis mengurangi saldo tabungan dengan total belanja ini.</p>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">Pengeluaran akan langsung mengurangi saldo aktif.</p>
       </div>
     </div>
 
@@ -93,10 +108,12 @@
       
       <!-- Warning Banner for Insufficient Balance (Hidden by default) -->
       <div id="warning-saldo-kurang" class="hidden mb-6 p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center gap-3 animate-fade-in">
-        <span class="text-2xl">⚠️</span>
+        <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
         <div>
-          <strong class="font-bold block text-sm">Peringatan: Saldo Tidak Cukup!</strong>
-          Total pengeluaran ini melebihi saldo tabungan Anda saat ini. Saldo akan menjadi defisit/minus.
+          <strong class="font-bold block text-sm">Saldo Tidak Mencukupi</strong>
+          Nominal pengeluaran melampaui saldo kas saat ini.
         </div>
       </div>
 
@@ -107,14 +124,14 @@
           <label for="belanja-nama" class="block text-xs font-bold uppercase tracking-wider text-rose-400 mb-2">
             Nama Barang / Keperluan *
           </label>
-          <input type="text" id="belanja-nama" required placeholder="Contoh: Beli beras 10kg, Bensin, Pembayaran Listrik"
+          <input type="text" id="belanja-nama" required placeholder="Contoh: Belanja kebutuhan, tagihan listrik, bahan bakar"
                  class="w-full px-4 py-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-rose-500 transition-all">
         </div>
 
         <!-- Nominal Input -->
         <div>
           <label for="belanja-nominal" class="block text-xs font-bold uppercase tracking-wider text-rose-400 mb-2">
-            Nominal Belanja (Rp) *
+            Nominal Pengeluaran (Rp) *
           </label>
           <div class="relative">
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">Rp</span>
@@ -130,22 +147,22 @@
           </label>
           
           <div class="flex flex-wrap gap-2 mb-3">
-            <button type="button" data-category="Makanan" class="chip-kategori preset-btn">🍔 Makanan</button>
-            <button type="button" data-category="Belanja Harian" class="chip-kategori preset-btn">🛒 Belanja Harian</button>
-            <button type="button" data-category="Transportasi" class="chip-kategori preset-btn">🚗 Transportasi</button>
-            <button type="button" data-category="Tagihan" class="chip-kategori preset-btn">💡 Tagihan</button>
-            <button type="button" data-category="Hiburan" class="chip-kategori preset-btn">🎬 Hiburan</button>
-            <button type="button" data-category="Lainnya" class="chip-kategori preset-btn">📦 Lainnya</button>
+            <button type="button" data-category="Belanja Kebutuhan" class="chip-kategori preset-btn">Belanja Kebutuhan</button>
+            <button type="button" data-category="Makanan & Minuman" class="chip-kategori preset-btn">Makanan & Minuman</button>
+            <button type="button" data-category="Transportasi" class="chip-kategori preset-btn">Transportasi</button>
+            <button type="button" data-category="Tagihan & Utilitas" class="chip-kategori preset-btn">Tagihan & Utilitas</button>
+            <button type="button" data-category="Operasional & Usaha" class="chip-kategori preset-btn">Operasional</button>
+            <button type="button" data-category="Lainnya" class="chip-kategori preset-btn">Lainnya</button>
           </div>
 
           <select id="belanja-kategori"
                   class="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-slate-700/70 text-slate-100 text-sm focus:outline-none focus:border-rose-500 transition-all">
-            <option value="Belanja Harian">🛒 Belanja Harian</option>
-            <option value="Makanan">🍔 Makanan & Minuman</option>
-            <option value="Transportasi">🚗 Transportasi & Bensin</option>
-            <option value="Tagihan">💡 Tagihan & Bulanan</option>
-            <option value="Hiburan">🎬 Hiburan & Gaya Hidup</option>
-            <option value="Lainnya">📦 Lainnya</option>
+            <option value="Belanja Kebutuhan">Belanja Kebutuhan</option>
+            <option value="Makanan & Minuman">Makanan & Minuman</option>
+            <option value="Transportasi">Transportasi</option>
+            <option value="Tagihan & Utilitas">Tagihan & Utilitas</option>
+            <option value="Operasional & Usaha">Operasional & Usaha</option>
+            <option value="Lainnya">Lainnya</option>
           </select>
         </div>
 
@@ -162,7 +179,7 @@
         <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
           <div>
             <span class="text-xs text-slate-400 block">Saldo Saat Ini: <strong id="val-current-saldo" class="text-slate-200">Rp 0</strong></span>
-            <span class="text-xs text-rose-400 font-semibold mt-0.5 block">Sisa Saldo Setelah Belanja:</span>
+            <span class="text-xs text-rose-400 font-semibold mt-0.5 block">Estimasi Saldo Akhir:</span>
           </div>
           <div id="preview-new-saldo" class="text-xl font-black text-slate-200">
             Rp 0
@@ -171,7 +188,7 @@
 
         <!-- Submit Button -->
         <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold text-sm rounded-xl shadow-lg shadow-rose-600/30 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-          <span>➖</span> Simpan Belanja
+          Simpan Pengeluaran
         </button>
 
       </form>

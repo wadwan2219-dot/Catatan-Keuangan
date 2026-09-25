@@ -72,18 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const tanggal = inputTanggal.value || getTodayString();
 
       if (!nominal || nominal <= 0) {
-        showToast('Masukkan nominal tabungan yang valid!', 'error');
+        showToast('Nominal tabungan tidak valid.', 'error');
         return;
       }
 
       // Add to store & Cloud Firestore DB
       await addTabunganTransaction(user.uid, nominal, keterangan, tanggal);
 
-      showToast(`Berhasil menambah tabungan sebesar ${formatRupiah(nominal)}! 💰`, 'success');
+      showToast(`Tabungan sebesar ${formatRupiah(nominal)} berhasil disimpan.`, 'success');
 
       setTimeout(() => {
         window.location.href = 'dashboard.html';
-      }, 700);
+      }, 500);
     });
   }
 });

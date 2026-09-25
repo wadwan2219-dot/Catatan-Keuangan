@@ -123,35 +123,35 @@ document.addEventListener('DOMContentLoaded', () => {
         amountSign = isIncome ? '+' : '-';
         amountClass = isIncome ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
         badgeClass = isIncome ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
-        typeLabel = isIncome ? 'Tabungan ➕' : 'Belanja ➖';
+        typeLabel = isIncome ? 'Tabungan' : 'Belanja';
 
         actionHtml = `
           <button data-id="${t.id}" data-type="${t.type}" class="btn-delete-trx px-2.5 py-1 text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-md border border-rose-500/30 transition-all">
-            🗑️ Hapus
+            Hapus
           </button>
         `;
       } else {
         // Debt domain
         if (t.type === 'debt') {
           badgeClass = 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30';
-          typeLabel = 'Hutang 🤝';
+          typeLabel = 'Hutang';
           amountClass = 'text-indigo-300 font-bold';
           amountSign = '';
         } else if (t.type === 'payment') {
           badgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-          typeLabel = 'Bayar Hutang 💸';
+          typeLabel = 'Pembayaran';
           amountClass = 'text-emerald-300 font-bold';
           amountSign = '';
         } else {
           badgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
-          typeLabel = 'Pembatalan ⚠️';
+          typeLabel = 'Pembatalan';
           amountClass = 'text-slate-400';
           amountSign = '';
         }
 
         actionHtml = `
           <a href="hutang.html" class="px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md border border-slate-700 transition-all inline-block">
-            Kelola ➔
+            Detail
           </a>
         `;
       }
@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = e.currentTarget.getAttribute('data-id');
         const type = e.currentTarget.getAttribute('data-type');
         
-        if (confirm('Apakah Anda yakin ingin menghapus transaksi ini? Saldo kas akan dihitung ulang.')) {
+        if (confirm('Hapus transaksi ini? Tindakan ini tidak dapat dibatalkan.')) {
           await deleteTransactionItem(id, type);
           showToast('Transaksi berhasil dihapus.', 'info');
           reloadData();
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnExportCsv) {
     btnExportCsv.addEventListener('click', () => {
       if (unifiedList.length === 0) {
-        showToast('Tidak ada transaksi untuk diexport!', 'warning');
+        showToast('Tidak ada data transaksi untuk diekspor.', 'warning');
         return;
       }
 
@@ -227,11 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `riwayat_lengkap_saldoku_${getTodayString()}.csv`);
+      link.setAttribute('download', `riwayat_transaksi_${getTodayString()}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast('File CSV lengkap berhasil diunduh! 📊', 'success');
+      showToast('File CSV berhasil diekspor.', 'success');
     });
   }
 

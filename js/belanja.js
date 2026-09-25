@@ -91,12 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const tanggal = inputTanggal.value || getTodayString();
 
       if (!namaItem) {
-        showToast('Masukkan nama barang/keperluan belanja!', 'error');
+        showToast('Nama barang atau keperluan harus diisi.', 'error');
         return;
       }
 
       if (!nominal || nominal <= 0) {
-        showToast('Masukkan nominal pengeluaran yang valid!', 'error');
+        showToast('Nominal pengeluaran tidak valid.', 'error');
         return;
       }
 
@@ -104,17 +104,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Warn if user proceeds with deficit
       if (nominal > currentStats.sisaSaldo) {
-        showToast('Catatan: Transaksi ini membuat saldo Anda minus/defisit!', 'warning');
+        showToast('Peringatan: Saldo menjadi defisit.', 'warning');
       }
 
       // Add to store & Cloud Firestore DB
       await addBelanjaTransaction(user.uid, namaItem, nominal, kategori, tanggal);
 
-      showToast(`Pengeluaran ${namaItem} (${formatRupiah(nominal)}) telah dicatat! 🛒`, 'success');
+      showToast(`Pengeluaran ${namaItem} (${formatRupiah(nominal)}) berhasil dicatat.`, 'success');
 
       setTimeout(() => {
         window.location.href = 'dashboard.html';
-      }, 700);
+      }, 500);
     });
   }
 });
