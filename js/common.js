@@ -89,7 +89,20 @@ function getCurrentUser() {
   const session = localStorage.getItem('saldoku_user_session');
   if (!session) return null;
   try {
-    return JSON.parse(session);
+    const user = JSON.parse(session);
+    if (!user) return null;
+
+    // Auto-normalize session:
+    // Any user account with an email (or not explicitly marked as personal PIN mode)
+    // is the Joint Account (Akun Bersama) with full debt access and shared cash partition.
+    const isExplicitPersonal = user.role === 'personal' || user.isPersonal === true || user.uid === 'iwan' || user.uid === 'wadda';
+    if (!isExplicitPersonal) {
+      user.isJoint = true;
+      user.groupId = user.groupId || 'group_default';
+      user.memberId = user.memberId || 'bersama';
+      user.role = user.role || 'partner';
+    }
+    return user;
   } catch (e) {
     return null;
   }
@@ -250,12 +263,16 @@ function syncFirestoreData(onUpdateCallback) {
 // --------------------------------------------------------------------------
 function isJointAccount() {
   const user = getCurrentUser();
-  return Boolean(user && user.isJoint === true);
+  if (!user) return false;
+  // Personal mode is strictly when entering via 4-digit PIN for Iwan or Wadda
+  if (user.role === 'personal' || user.isPersonal === true || user.isJoint === false) {
+    return false;
+  }
+  return true;
 }
 
 function setupDebtVisibility() {
-  const user = getCurrentUser();
-  const hasDebtAccess = Boolean(user && user.isJoint === true);
+  const hasDebtAccess = isJointAccount();
   if (!hasDebtAccess) {
     // Hide navigation links to hutang.html
     document.querySelectorAll('a[href="hutang.html"]').forEach(el => {
@@ -265,6 +282,14 @@ function setupDebtVisibility() {
     document.querySelectorAll('[data-debt-feature]').forEach(el => {
       el.style.display = 'none';
     });
+  } else {
+    // Ensure all navigation links and debt feature cards are visible
+    document.querySelectorAll('a[href="hutang.html"]').forEach(el => {
+      el.style.removeProperty('display');
+    });
+    document.querySelectorAll('[data-debt-feature]').forEach(el => {
+      el.style.removeProperty('display');
+    });
   }
 }
 document.addEventListener('DOMContentLoaded', setupDebtVisibility);
@@ -272,9 +297,9 @@ document.addEventListener('DOMContentLoaded', setupDebtVisibility);
 function getUserTabungan(userId) {
   const all = getRawTabungan();
   const currentUser = getCurrentUser();
-  if (currentUser && currentUser.isJoint) {
-    // Akun bersama: melihat kas bersama
-    return all.filter(item => item.group_id === 'group_default');
+  if (isJointAccount()) {
+    // Akun bersama: melihat kas bersama (group_default atau tanpa group_id)
+    return all.filter(item => !item.group_id || item.group_id === 'group_default');
   }
   // Akun pribadi: hanya melihat catatan pribadinya
   const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));
@@ -284,9 +309,9 @@ function getUserTabungan(userId) {
 function getUserBelanja(userId) {
   const all = getRawBelanja();
   const currentUser = getCurrentUser();
-  if (currentUser && currentUser.isJoint) {
-    // Akun bersama: melihat kas belanja bersama
-    return all.filter(item => item.group_id === 'group_default');
+  if (isJointAccount()) {
+    // Akun bersama: melihat kas belanja bersama (group_default atau tanpa group_id)
+    return all.filter(item => !item.group_id || item.group_id === 'group_default');
   }
   // Akun pribadi: hanya melihat belanja pribadinya
   const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));

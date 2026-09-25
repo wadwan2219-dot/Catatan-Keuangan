@@ -76,6 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
             uid: fbUser.uid,
             email: email,
             nama: nama,
+            role: 'partner',
+            isJoint: true,
+            groupId: 'group_default',
+            memberId: 'bersama',
             createdAt: new Date().toISOString()
           };
 
@@ -111,12 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
         email: email,
         nama: nama,
         passwordHash: btoa(password),
+        role: 'partner',
+        isJoint: true,
+        groupId: 'group_default',
+        memberId: 'bersama',
         createdAt: new Date().toISOString()
       };
       registeredUsers.push(newUser);
       localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
 
-      setCurrentUser({ uid: newUser.uid, email: newUser.email, nama: newUser.nama });
+      setCurrentUser(newUser);
       showToast('Pendaftaran akun berhasil.', 'success');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
     });
@@ -145,7 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
           let userObj = {
             uid: fbUser.uid,
             email: fbUser.email,
-            nama: fbUser.displayName || fbUser.email.split('@')[0].toUpperCase()
+            nama: fbUser.displayName || fbUser.email.split('@')[0].toUpperCase(),
+            role: 'partner',
+            isJoint: true,
+            groupId: 'group_default',
+            memberId: 'bersama'
           };
 
           // Fetch name from Firestore users collection
@@ -159,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           setCurrentUser(userObj);
-          showToast('Autentikasi berhasil.', 'success');
+          showToast('Autentikasi berhasil. Membuka Akun Bersama.', 'success');
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
@@ -176,8 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let registeredUsers = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
       
       // Default seed demo accounts for joint access
-      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.email === 'bersama@gmail.com')) {
+      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.email === 'wadwan2219@gmail.com')) {
         registeredUsers = [
+          { uid: 'wadwan', memberId: 'bersama', email: 'wadwan2219@gmail.com', passwordHash: btoa('wadwan123'), nama: 'WADWAN2219 (Akun Bersama)', role: 'partner', isJoint: true },
           { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
           { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
           { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true }
