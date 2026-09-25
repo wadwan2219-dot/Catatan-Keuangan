@@ -201,36 +201,101 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ------------------------------------------------------------------------
-  // 3. DEMO LOGIN BUTTONS (Iwan & Wadda)
+  // 3. PIN AUTHENTICATION MODAL FOR IWAN (1912) & WADDA (2206)
   // ------------------------------------------------------------------------
+  const PIN_CREDENTIALS = {
+    iwan: '1912',
+    wadda: '2206'
+  };
+
+  let activePinTarget = 'iwan';
+
+  const modalPinAuth = document.getElementById('modal-pin-auth');
+  const pinModalTitle = document.getElementById('pin-modal-title');
+  const inputPinCode = document.getElementById('input-pin-code');
+  const formPinAuth = document.getElementById('form-pin-auth');
+  const btnClosePinModal = document.getElementById('btn-close-pin-modal');
+
   const demoIwanBtn = document.getElementById('btn-demo-iwan') || document.getElementById('btn-demo-budi');
   const demoWaddaBtn = document.getElementById('btn-demo-wadda') || document.getElementById('btn-demo-ani');
 
+  function openPinModal(target) {
+    activePinTarget = target;
+    const isIwan = target === 'iwan';
+    if (pinModalTitle) {
+      pinModalTitle.textContent = isIwan ? 'PIN Keamanan Iwan 👤' : 'PIN Keamanan Wadda 👩‍🦰';
+    }
+    if (inputPinCode) {
+      inputPinCode.value = '';
+    }
+    if (modalPinAuth) {
+      modalPinAuth.classList.remove('hidden');
+      setTimeout(() => {
+        if (inputPinCode) inputPinCode.focus();
+      }, 100);
+    }
+  }
+
+  function closePinModal() {
+    if (modalPinAuth) modalPinAuth.classList.add('hidden');
+    if (inputPinCode) inputPinCode.value = '';
+  }
+
   if (demoIwanBtn) {
-    demoIwanBtn.addEventListener('click', () => {
-      const user = {
-        uid: 'iwan',
-        memberId: 'iwan',
-        nama: 'Iwan',
-        email: 'iwan@gmail.com'
-      };
-      setCurrentUser(user);
-      showToast('Masuk sebagai Mode Demo: Iwan 👤', 'info');
-      setTimeout(() => window.location.href = 'dashboard.html', 500);
-    });
+    demoIwanBtn.addEventListener('click', () => openPinModal('iwan'));
   }
 
   if (demoWaddaBtn) {
-    demoWaddaBtn.addEventListener('click', () => {
+    demoWaddaBtn.addEventListener('click', () => openPinModal('wadda'));
+  }
+
+  if (btnClosePinModal) {
+    btnClosePinModal.addEventListener('click', closePinModal);
+  }
+
+  if (modalPinAuth) {
+    modalPinAuth.addEventListener('click', (e) => {
+      if (e.target === modalPinAuth) closePinModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalPinAuth && !modalPinAuth.classList.contains('hidden')) {
+      closePinModal();
+    }
+  });
+
+  if (formPinAuth) {
+    formPinAuth.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const enteredPin = inputPinCode ? inputPinCode.value.trim() : '';
+      const correctPin = PIN_CREDENTIALS[activePinTarget];
+
+      if (enteredPin !== correctPin) {
+        showToast('PIN Salah! Akses ditolak ❌', 'error');
+        if (inputPinCode) {
+          inputPinCode.value = '';
+          inputPinCode.focus();
+        }
+        return;
+      }
+
+      const isIwan = activePinTarget === 'iwan';
       const user = {
-        uid: 'wadda',
-        memberId: 'wadda',
-        nama: 'Wadda',
-        email: 'wadda@gmail.com'
+        uid: activePinTarget,
+        memberId: activePinTarget,
+        nama: isIwan ? 'Iwan' : 'Wadda',
+        email: isIwan ? 'iwan@gmail.com' : 'wadda@gmail.com',
+        role: 'partner',
+        groupId: 'group_default'
       };
+
       setCurrentUser(user);
-      showToast('Masuk sebagai Mode Demo: Wadda 👩‍🦰', 'info');
-      setTimeout(() => window.location.href = 'dashboard.html', 500);
+      closePinModal();
+      showToast(`PIN Benar! Selamat datang, ${user.nama} 👋`, 'success');
+      setTimeout(() => {
+        window.location.href = 'dashboard.html';
+      }, 600);
     });
   }
 });

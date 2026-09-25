@@ -159,7 +159,47 @@ function saveRawBelanja(list) {
  * Subscribes to Cloud Firestore Database collections `tabungan` and `belanja`.
  * Updates UI dynamically whenever any device inputs new data!
  */
+/**
+ * Real-time Database Cloud Sync:
+ * Supports Supabase Realtime (Priority) and Firebase Firestore.
+ */
+async function syncSupabaseData(onUpdateCallback) {
+  if (!window.supabaseClient || !window.isSupabaseConnected()) return;
+
+  try {
+    // 1. Initial fetch from Supabase
+    const { data: savings, error: errSav } = await window.supabaseClient.from('tabungan').select('*');
+    if (savings && !errSav) saveRawTabungan(savings);
+
+    const { data: expenses, error: errExp } = await window.supabaseClient.from('belanja').select('*');
+    if (expenses && !errExp) saveRawBelanja(expenses);
+
+    if (onUpdateCallback) onUpdateCallback();
+
+    // 2. Realtime listener channel
+    window.supabaseClient
+      .channel('saldoku_cash_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tabungan' }, async () => {
+        const { data } = await window.supabaseClient.from('tabungan').select('*');
+        if (data) { saveRawTabungan(data); if (onUpdateCallback) onUpdateCallback(); }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'belanja' }, async () => {
+        const { data } = await window.supabaseClient.from('belanja').select('*');
+        if (data) { saveRawBelanja(data); if (onUpdateCallback) onUpdateCallback(); }
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('Supabase sync error:', err);
+  }
+}
+
 function syncFirestoreData(onUpdateCallback) {
+  // If Supabase is connected, use Supabase Realtime
+  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+    syncSupabaseData(onUpdateCallback);
+    return;
+  }
+
   if (!window.firebaseDb || !window.isFirebaseConnected()) {
     if (onUpdateCallback) onUpdateCallback();
     return;
@@ -198,10 +238,31 @@ function syncFirestoreData(onUpdateCallback) {
   }
 }
 
+// --------------------------------------------------------------------------
+// 3-Actor Data Partitioning Helper (Iwan & Wadda share group_default, Umum separated)
+// --------------------------------------------------------------------------
+function getUserTabungan(userId) {
+  const all = getRawTabungan();
+  const currentUser = getCurrentUser();
+  if (currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(currentUser.uid))) {
+    return all.filter(item => ['iwan', 'wadda'].includes(item.user_id) || item.group_id === 'group_default');
+  }
+  return all.filter(item => item.user_id === userId);
+}
+
+function getUserBelanja(userId) {
+  const all = getRawBelanja();
+  const currentUser = getCurrentUser();
+  if (currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(currentUser.uid))) {
+    return all.filter(item => ['iwan', 'wadda'].includes(item.user_id) || item.group_id === 'group_default');
+  }
+  return all.filter(item => item.user_id === userId);
+}
+
 // Compute Balances dynamically from active database
 function calculateUserBalance(userId) {
-  const savings = getRawTabungan();
-  const expenses = getRawBelanja();
+  const savings = getUserTabungan(userId);
+  const expenses = getUserBelanja(userId);
 
   const totalTabungan = savings.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
   const totalBelanja = expenses.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
@@ -216,29 +277,47 @@ function calculateUserBalance(userId) {
   };
 }
 
-// Add Tabungan (Income) directly to Firebase Cloud Firestore DB
+// Add Tabungan (Income) directly to Supabase / Firebase / Local
 async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
+  const currentUser = getCurrentUser();
+  const isPartner = currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(userId));
+  const groupId = isPartner ? 'group_default' : (userId || 'user_default');
+
   const newItem = {
+    id: 'tab_' + Date.now(),
     user_id: userId,
+    group_id: groupId,
     jumlah: Number(jumlah),
     keterangan: keterangan || 'Tabungan Masuk',
     tanggal: tanggal || getTodayString(),
     createdAt: new Date().toISOString()
   };
 
-  if (window.firebaseDb && window.isFirebaseConnected()) {
+  // 1. Try Supabase if connected
+  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+    try {
+      const dbRow = {
+        id: newItem.id,
+        user_id: newItem.user_id,
+        group_id: newItem.group_id,
+        jumlah: newItem.jumlah,
+        keterangan: newItem.keterangan,
+        tanggal: newItem.tanggal
+      };
+      await window.supabaseClient.from('tabungan').insert([dbRow]);
+    } catch (e) {
+      console.warn('Supabase write tabungan fallback:', e);
+    }
+  } else if (window.firebaseDb && window.isFirebaseConnected()) {
     try {
       const docRef = await window.firebaseDb.collection('tabungan').add(newItem);
       newItem.id = docRef.id;
     } catch (e) {
       console.warn('Firestore write tabungan fallback:', e);
-      newItem.id = 'tab_' + Date.now();
     }
-  } else {
-    newItem.id = 'tab_' + Date.now();
   }
 
-  // Update Local Storage Cache
+  // 2. Update Local Storage Cache
   const list = getRawTabungan();
   list.unshift(newItem);
   saveRawTabungan(list);
@@ -246,10 +325,16 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
   return newItem;
 }
 
-// Add Belanja (Expense) directly to Firebase Cloud Firestore DB
+// Add Belanja (Expense) directly to Supabase / Firebase / Local
 async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
+  const currentUser = getCurrentUser();
+  const isPartner = currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(userId));
+  const groupId = isPartner ? 'group_default' : (userId || 'user_default');
+
   const newItem = {
+    id: 'bel_' + Date.now(),
     user_id: userId,
+    group_id: groupId,
     nama_item: nama_item,
     jumlah: Number(jumlah),
     kategori: kategori || 'Umum',
@@ -257,19 +342,32 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
     createdAt: new Date().toISOString()
   };
 
-  if (window.firebaseDb && window.isFirebaseConnected()) {
+  // 1. Try Supabase if connected
+  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+    try {
+      const dbRow = {
+        id: newItem.id,
+        user_id: newItem.user_id,
+        group_id: newItem.group_id,
+        nama_item: newItem.nama_item,
+        jumlah: newItem.jumlah,
+        kategori: newItem.kategori,
+        tanggal: newItem.tanggal
+      };
+      await window.supabaseClient.from('belanja').insert([dbRow]);
+    } catch (e) {
+      console.warn('Supabase write belanja fallback:', e);
+    }
+  } else if (window.firebaseDb && window.isFirebaseConnected()) {
     try {
       const docRef = await window.firebaseDb.collection('belanja').add(newItem);
       newItem.id = docRef.id;
     } catch (e) {
       console.warn('Firestore write belanja fallback:', e);
-      newItem.id = 'bel_' + Date.now();
     }
-  } else {
-    newItem.id = 'bel_' + Date.now();
   }
 
-  // Update Local Storage Cache
+  // 2. Update Local Storage Cache
   const list = getRawBelanja();
   list.unshift(newItem);
   saveRawBelanja(list);
@@ -279,14 +377,14 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
 
 // Get All Transactions Merged & Sorted
 function getAllTransactions(userId) {
-  const savings = getRawTabungan().map(t => ({
+  const savings = getUserTabungan(userId).map(t => ({
     ...t,
     type: 'tabungan',
     title: t.keterangan || 'Tabungan',
     amount: t.jumlah
   }));
 
-  const expenses = getRawBelanja().map(b => ({
+  const expenses = getUserBelanja(userId).map(b => ({
     ...b,
     type: 'belanja',
     title: b.nama_item || 'Belanja',
@@ -304,15 +402,22 @@ async function deleteTransactionItem(id, type) {
     let list = getRawTabungan();
     list = list.filter(item => item.id !== id);
     saveRawTabungan(list);
-    if (window.firebaseDb && window.isFirebaseConnected()) {
-      try { await window.firebaseDb.collection('tabungan').doc(id).delete(); } catch(e){}
-    }
   } else if (type === 'belanja') {
     let list = getRawBelanja();
     list = list.filter(item => item.id !== id);
     saveRawBelanja(list);
-    if (window.firebaseDb && window.isFirebaseConnected()) {
-      try { await window.firebaseDb.collection('belanja').doc(id).delete(); } catch(e){}
+  }
+
+  // Delete from Supabase
+  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+    try {
+      await window.supabaseClient.from(type).delete().eq('id', id);
+    } catch (e) {
+      console.warn('Supabase delete error:', e);
     }
+  } else if (window.firebaseDb && window.isFirebaseConnected()) {
+    try {
+      await window.firebaseDb.collection(type).doc(id).delete();
+    } catch (e) {}
   }
 }

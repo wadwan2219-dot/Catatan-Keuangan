@@ -69,7 +69,7 @@
 
   /**
    * Subscribes to real-time debt entries.
-   * Works seamlessly with Cloud Firestore (if available) or LocalStorage.
+   * Works seamlessly with Supabase Realtime (Priority), Cloud Firestore, or LocalStorage.
    * Returns an unsubscribe function.
    */
   function subscribeEntries(callback) {
@@ -79,7 +79,70 @@
     const initialList = sortEntries(getLocalEntries());
     callback(initialList);
 
-    // If Firestore is connected, listen to Cloud collection
+    // 1. If Supabase is connected, subscribe to Supabase Realtime
+    if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+      try {
+        // Initial fetch from Supabase
+        window.supabaseClient.from('debt_entries').select('*').then(({ data, error }) => {
+          if (data && !error) {
+            const mapped = data.map(d => ({
+              id: d.id,
+              kind: d.kind,
+              fromMemberId: d.from_member_id,
+              toMemberId: d.to_member_id,
+              amount: Number(d.amount),
+              note: d.note,
+              occurredAt: d.occurred_at,
+              reversesEntryId: d.reverses_entry_id,
+              originalDelta: Number(d.original_delta),
+              createdByUid: d.created_by_uid,
+              createdByName: d.created_by_name,
+              clientRequestId: d.client_request_id,
+              createdAt: d.created_at
+            }));
+            const sorted = sortEntries(mapped);
+            saveLocalEntries(sorted);
+            callback(sorted);
+          }
+        });
+
+        // Supabase Realtime Channel
+        const channel = window.supabaseClient
+          .channel('saldoku_debt_channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'debt_entries' }, async () => {
+            const { data } = await window.supabaseClient.from('debt_entries').select('*');
+            if (data) {
+              const mapped = data.map(d => ({
+                id: d.id,
+                kind: d.kind,
+                fromMemberId: d.from_member_id,
+                toMemberId: d.to_member_id,
+                amount: Number(d.amount),
+                note: d.note,
+                occurredAt: d.occurred_at,
+                reversesEntryId: d.reverses_entry_id,
+                originalDelta: Number(d.original_delta),
+                createdByUid: d.created_by_uid,
+                createdByName: d.created_by_name,
+                clientRequestId: d.client_request_id,
+                createdAt: d.created_at
+              }));
+              const sorted = sortEntries(mapped);
+              saveLocalEntries(sorted);
+              callback(sorted);
+            }
+          })
+          .subscribe();
+
+        return () => {
+          if (channel) channel.unsubscribe();
+        };
+      } catch (err) {
+        console.warn('Supabase debt sync error:', err);
+      }
+    }
+
+    // 2. If Firestore is connected, listen to Cloud collection
     if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
       try {
         const debtCol = window.firebaseDb
@@ -164,8 +227,29 @@
         clientRequestId: generateRequestId()
       };
 
-      // 1. Try writing to Firestore if connected
-      if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
+      // 1. Try writing to Supabase if connected
+      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          const dbRow = {
+            id: newEntry.id || ('debt_' + Date.now()),
+            group_id: DEFAULT_GROUP_ID,
+            kind: newEntry.kind,
+            from_member_id: newEntry.fromMemberId,
+            to_member_id: newEntry.toMemberId,
+            amount: newEntry.amount,
+            note: newEntry.note,
+            occurred_at: newEntry.occurredAt,
+            created_by_uid: newEntry.createdByUid,
+            created_by_name: newEntry.createdByName,
+            client_request_id: newEntry.clientRequestId
+          };
+          await window.supabaseClient.from('debt_entries').insert([dbRow]);
+          newEntry.id = dbRow.id;
+        } catch (sbErr) {
+          console.warn('Supabase write debt fallback:', sbErr);
+          newEntry.id = 'debt_' + Date.now();
+        }
+      } else if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
         try {
           const docData = { ...newEntry };
           if (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue) {
@@ -187,7 +271,6 @@
 
       // 2. Always update local storage cache
       const currentList = getLocalEntries();
-      // Guard against duplicate clientRequestId
       if (!currentList.some(item => item.clientRequestId === newEntry.clientRequestId)) {
         currentList.unshift(newEntry);
         saveLocalEntries(sortEntries(currentList));
@@ -234,8 +317,29 @@
         clientRequestId: generateRequestId()
       };
 
-      // 1. Try writing to Firestore if connected
-      if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
+      // 1. Try writing to Supabase if connected
+      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          const dbRow = {
+            id: newEntry.id || ('pay_' + Date.now()),
+            group_id: DEFAULT_GROUP_ID,
+            kind: newEntry.kind,
+            from_member_id: newEntry.fromMemberId,
+            to_member_id: newEntry.toMemberId,
+            amount: newEntry.amount,
+            note: newEntry.note,
+            occurred_at: newEntry.occurredAt,
+            created_by_uid: newEntry.createdByUid,
+            created_by_name: newEntry.createdByName,
+            client_request_id: newEntry.clientRequestId
+          };
+          await window.supabaseClient.from('debt_entries').insert([dbRow]);
+          newEntry.id = dbRow.id;
+        } catch (sbErr) {
+          console.warn('Supabase write payment fallback:', sbErr);
+          newEntry.id = 'pay_' + Date.now();
+        }
+      } else if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
         try {
           const docData = { ...newEntry };
           if (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue) {
@@ -308,8 +412,31 @@
         clientRequestId: generateRequestId()
       };
 
-      // 1. Try writing to Firestore if connected
-      if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
+      // 1. Try writing to Supabase if connected
+      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          const dbRow = {
+            id: reversalPayload.id || ('rev_' + Date.now()),
+            group_id: DEFAULT_GROUP_ID,
+            kind: reversalPayload.kind,
+            from_member_id: originalEntry.fromMemberId || 'iwan',
+            to_member_id: originalEntry.toMemberId || 'wadda',
+            amount: reversalPayload.amount,
+            note: reversalPayload.note,
+            occurred_at: reversalPayload.occurredAt,
+            reverses_entry_id: reversalPayload.reversesEntryId,
+            original_delta: reversalPayload.originalDelta,
+            created_by_uid: reversalPayload.createdByUid,
+            created_by_name: reversalPayload.createdByName,
+            client_request_id: reversalPayload.clientRequestId
+          };
+          await window.supabaseClient.from('debt_entries').insert([dbRow]);
+          reversalPayload.id = dbRow.id;
+        } catch (sbErr) {
+          console.warn('Supabase write reversal fallback:', sbErr);
+          reversalPayload.id = 'rev_' + Date.now();
+        }
+      } else if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
         try {
           const docData = { ...reversalPayload };
           if (window.firebase && window.firebase.firestore && window.firebase.firestore.FieldValue) {
