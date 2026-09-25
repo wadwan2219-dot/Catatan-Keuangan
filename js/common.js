@@ -294,6 +294,26 @@ function setupDebtVisibility() {
 }
 document.addEventListener('DOMContentLoaded', setupDebtVisibility);
 
+// Dynamic Dashboard URL Resolver
+function getDashboardUrl() {
+  const user = getCurrentUser();
+  if (user && user.memberId === 'iwan') return 'dashboard-iwan.html';
+  if (user && user.memberId === 'wadda') return 'dashboard-wadda.html';
+  return 'dashboard.html';
+}
+
+function syncDashboardNavigationLinks() {
+  const user = getCurrentUser();
+  if (!user) return;
+  const dashUrl = getDashboardUrl();
+  if (user.memberId === 'iwan' || user.memberId === 'wadda') {
+    document.querySelectorAll('a[href="dashboard.html"]').forEach(el => {
+      el.setAttribute('href', dashUrl);
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', syncDashboardNavigationLinks);
+
 function getUserTabungan(userId) {
   const all = getRawTabungan();
   const currentUser = getCurrentUser();

@@ -5,9 +5,17 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // If user is already logged in, redirect to dashboard
+  // If user is already logged in, redirect to their respective dashboard
   const currentUser = getCurrentUser();
-  if (currentUser && window.location.pathname.endsWith('index.html')) {
+  if (currentUser && (window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/'))) {
+    if (currentUser.memberId === 'iwan') {
+      window.location.href = 'dashboard-iwan.html';
+      return;
+    }
+    if (currentUser.memberId === 'wadda') {
+      window.location.href = 'dashboard-wadda.html';
+      return;
+    }
     window.location.href = 'dashboard.html';
     return;
   }
@@ -320,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
       closePinModal();
       showToast(`Verifikasi berhasil. Membuka sesi ${isIwan ? 'Iwan' : 'Wadda'}.`, 'success');
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = isIwan ? 'dashboard-iwan.html' : 'dashboard-wadda.html';
       }, 500);
     });
   }

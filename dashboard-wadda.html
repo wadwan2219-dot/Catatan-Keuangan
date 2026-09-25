@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaldoKu - Dashboard Wadda</title>
+  <meta name="description" content="Dashboard catatan keuangan pribadi Wadda.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="pb-16 bg-slate-950 text-slate-100">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-slate-900/70 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="dashboard-wadda.html" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        </div>
+        <span class="text-lg font-bold text-white tracking-tight">Saldo<span class="text-indigo-400">Ku</span></span>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="dashboard-wadda.html" class="nav-link active text-sm text-indigo-400 font-bold">Dashboard</a>
+        <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white">Tabungan</a>
+        <a href="belanja.html" class="nav-link text-sm text-slate-300 hover:text-white">Pengeluaran</a>
+        <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white">Riwayat</a>
+      </nav>
+
+      <!-- User Profile & Logout -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-indigo-500/30">
+          <div class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+            W
+          </div>
+          <div class="hidden sm:block text-left">
+            <p id="user-display-name" class="text-xs font-bold text-indigo-300 leading-tight">Wadda (Pribadi)</p>
+            <p id="user-display-email" class="text-[10px] text-slate-400 leading-tight">wadda@pribadi.com</p>
+          </div>
+        </div>
+        <button id="btn-logout" title="Keluar Akun" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span class="hidden sm:inline">Keluar</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Mobile Bottom Nav -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 px-3 py-2 flex justify-around">
+    <a href="dashboard-wadda.html" class="flex flex-col items-center text-indigo-400">
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+      <span class="text-[10px] font-semibold">Home</span>
+    </a>
+    <a href="tabungan.html" class="flex flex-col items-center text-slate-400 hover:text-emerald-400">
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+      <span class="text-[10px] font-semibold">Tabungan</span>
+    </a>
+    <a href="belanja.html" class="flex flex-col items-center text-slate-400 hover:text-rose-400">
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+      </svg>
+      <span class="text-[10px] font-semibold">Pengeluaran</span>
+    </a>
+    <a href="riwayat.html" class="flex flex-col items-center text-slate-400 hover:text-indigo-400">
+      <svg class="w-5 h-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      <span class="text-[10px] font-semibold">Riwayat</span>
+    </a>
+  </div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-2">
+          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+          Mode Pribadi
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Dashboard Wadda</h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">Ringkasan arus kas, tabungan, dan pengeluaran pribadi Wadda.</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="tabungan.html" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-1.5">
+          <span>+</span> Tabungan
+        </a>
+        <a href="belanja.html" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/20 transition-all flex items-center gap-1.5">
+          <span>-</span> Pengeluaran
+        </a>
+      </div>
+    </div>
+
+    <!-- 3 MAIN SUMMARY CARDS -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      
+      <!-- Card 1: Sisa Saldo Wadda -->
+      <div class="glass-card p-6 border-indigo-500/30 relative overflow-hidden flex flex-col justify-between">
+        <div class="absolute -right-8 -top-8 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl"></div>
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Saldo Pribadi Wadda</span>
+            <span id="badge-status-saldo" class="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Surplus
+            </span>
+          </div>
+          <h2 id="val-sisa-saldo" class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Rp 0
+          </h2>
+          <p class="text-[11px] text-slate-400 mt-2">
+            Kalkulasi: <span class="text-slate-300 font-mono">Tabungan - Pengeluaran</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Tabungan Wadda -->
+      <div class="glass-card p-6 border-emerald-500/20 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Total Tabungan</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </div>
+          </div>
+          <h3 id="val-total-tabungan" class="text-2xl sm:text-3xl font-extrabold text-emerald-400 tracking-tight">
+            Rp 0
+          </h3>
+          <p class="text-xs text-slate-400 mt-2">Akumulasi seluruh pemasukan pribadi</p>
+        </div>
+      </div>
+
+      <!-- Card 3: Total Pengeluaran Wadda -->
+      <div class="glass-card p-6 border-rose-500/20 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-400">Total Pengeluaran</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </div>
+          </div>
+          <h3 id="val-total-belanja" class="text-2xl sm:text-3xl font-extrabold text-rose-400 tracking-tight">
+            Rp 0
+          </h3>
+          <p class="text-xs text-slate-400 mt-2">Akumulasi seluruh pengeluaran pribadi</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BUDGET PROGRESS BAR -->
+    <div class="glass-card p-5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold text-slate-300">Rasio Pengeluaran Pribadi</span>
+        <span id="budget-progress-percent" class="text-xs font-bold text-indigo-400">0% terpakai</span>
+      </div>
+      <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+        <div id="budget-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <!-- QUICK ACTIONS & RECENT TRANSACTIONS GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Left Column: Quick Action Cards -->
+      <div class="space-y-4 lg:col-span-1">
+        <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider">Aksi Cepat Wadda</h3>
+
+        <a href="tabungan.html" class="glass-card p-4 flex items-center gap-4 hover:border-emerald-500/40 group transition-all block">
+          <div class="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">Catat Tabungan</h4>
+            <p class="text-xs text-slate-400">Tambah tabungan pribadi Wadda</p>
+          </div>
+        </a>
+
+        <a href="belanja.html" class="glass-card p-4 flex items-center gap-4 hover:border-rose-500/40 group transition-all block">
+          <div class="w-11 h-11 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white group-hover:text-rose-400 transition-colors">Catat Pengeluaran</h4>
+            <p class="text-xs text-slate-400">Input pengeluaran belanja Wadda</p>
+          </div>
+        </a>
+
+        <a href="riwayat.html" class="glass-card p-4 flex items-center gap-4 hover:border-indigo-500/40 group transition-all block">
+          <div class="w-11 h-11 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">Riwayat Pribadi</h4>
+            <p class="text-xs text-slate-400">Daftar transaksi tersaring khusus Wadda</p>
+          </div>
+        </a>
+      </div>
+
+      <!-- Right Column: Recent Transactions Feed -->
+      <div class="glass-card p-5 lg:col-span-2 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            Aktivitas Transaksi Wadda
+          </h3>
+          <a href="riwayat.html" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
+            Lihat Semua →
+          </a>
+        </div>
+
+        <!-- Recent Transactions Container -->
+        <div id="recent-transactions-list" class="space-y-2.5">
+          <!-- Populated dynamically via dashboard-wadda.js -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- JavaScript Modules -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/dashboard-wadda.js"></script>
+</body>
+</html>
