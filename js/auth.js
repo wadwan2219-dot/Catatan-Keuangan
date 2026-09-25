@@ -28,23 +28,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tab switching logic
   if (tabLoginBtn && tabRegisterBtn) {
     tabLoginBtn.addEventListener('click', () => {
-      tabLoginBtn.classList.add('bg-indigo-600', 'text-white');
-      tabLoginBtn.classList.remove('text-slate-400');
-      tabRegisterBtn.classList.remove('bg-indigo-600', 'text-white');
-      tabRegisterBtn.classList.add('text-slate-400');
+      tabLoginBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25';
+      tabRegisterBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-white';
       
       formLogin.classList.remove('hidden');
       formRegister.classList.add('hidden');
     });
 
     tabRegisterBtn.addEventListener('click', () => {
-      tabRegisterBtn.classList.add('bg-indigo-600', 'text-white');
-      tabRegisterBtn.classList.remove('text-slate-400');
-      tabLoginBtn.classList.remove('bg-indigo-600', 'text-white');
-      tabLoginBtn.classList.add('text-slate-400');
+      tabRegisterBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25';
+      tabLoginBtn.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-white';
       
       formRegister.classList.remove('hidden');
       formLogin.classList.add('hidden');
+    });
+  }
+
+  // Password Visibility Toggle
+  const btnTogglePassword = document.getElementById('btn-toggle-password');
+  const loginPasswordInput = document.getElementById('login-password');
+  if (btnTogglePassword && loginPasswordInput) {
+    btnTogglePassword.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isPassword = loginPasswordInput.type === 'password';
+      loginPasswordInput.type = isPassword ? 'text' : 'password';
+      const eyeOpen = document.getElementById('icon-eye-open');
+      const eyeClosed = document.getElementById('icon-eye-closed');
+      if (eyeOpen && eyeClosed) {
+        eyeOpen.classList.toggle('hidden', !isPassword);
+        eyeClosed.classList.toggle('hidden', isPassword);
+      }
     });
   }
 
