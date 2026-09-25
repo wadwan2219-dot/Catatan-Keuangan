@@ -6,6 +6,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
 
+  // Guard: Fitur Hutang hanya untuk Akun Bersama (Login Email)
+  if (!user.isJoint) {
+    showToast('Fitur Hutang hanya tersedia untuk Akun Bersama (Iwan & Wadda). Mengalihkan...', 'warning');
+    setTimeout(() => {
+      window.location.href = 'dashboard.html';
+    }, 1000);
+    return;
+  }
+
   // 1. Populate User Header
   const userNameElem = document.getElementById('user-display-name');
   const userEmailElem = document.getElementById('user-display-email');

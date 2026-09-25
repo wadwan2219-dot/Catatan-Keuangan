@@ -175,11 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Local Registry Strict Fallback (Rejects unregistered / random accounts)
       let registeredUsers = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
       
-      // Default seed demo accounts if registry is fresh
-      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.uid === 'iwan')) {
+      // Default seed demo accounts for joint access
+      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.email === 'bersama@gmail.com')) {
         registeredUsers = [
-          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan' },
-          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Wadda' }
+          { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
+          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
+          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true }
         ];
         localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
       }
@@ -193,15 +194,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const memberId = foundUser.memberId || (foundUser.nama && foundUser.nama.toLowerCase().includes('wadda') ? 'wadda' : 'iwan');
-      setCurrentUser({ uid: foundUser.uid, email: foundUser.email, nama: foundUser.nama, memberId });
-      showToast(`Login Berhasil! Selamat datang, ${foundUser.nama} 👋`, 'success');
+      // Login through form is strictly the JOINT ACCOUNT (Akun Bersama Iwan & Wadda with Debt Feature)
+      const jointUser = {
+        uid: foundUser.uid || 'bersama',
+        email: foundUser.email,
+        nama: foundUser.nama || 'Iwan & Wadda (Akun Bersama)',
+        memberId: 'bersama',
+        role: 'partner',
+        isJoint: true,
+        groupId: 'group_default'
+      };
+
+      setCurrentUser(jointUser);
+      showToast(`Login Berhasil! Selamat datang di Akun Bersama 👋`, 'success');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 700);
     });
   }
 
   // ------------------------------------------------------------------------
-  // 3. PIN AUTHENTICATION MODAL FOR IWAN (1912) & WADDA (2206)
+  // 3. PIN AUTHENTICATION MODAL FOR PERSONAL MODE: IWAN (1912) & WADDA (2206)
   // ------------------------------------------------------------------------
   const PIN_CREDENTIALS = {
     iwan: '1912',
@@ -223,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activePinTarget = target;
     const isIwan = target === 'iwan';
     if (pinModalTitle) {
-      pinModalTitle.textContent = isIwan ? 'PIN Keamanan Iwan 👤' : 'PIN Keamanan Wadda 👩‍🦰';
+      pinModalTitle.textContent = isIwan ? 'PIN Mode Pribadi Iwan 👤' : 'PIN Mode Pribadi Wadda 👩‍🦰';
     }
     if (inputPinCode) {
       inputPinCode.value = '';
@@ -280,19 +291,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // PIN Mode is strictly PERSONAL ACCOUNT (No Debt Feature)
       const isIwan = activePinTarget === 'iwan';
-      const user = {
+      const personalUser = {
         uid: activePinTarget,
         memberId: activePinTarget,
-        nama: isIwan ? 'Iwan' : 'Wadda',
-        email: isIwan ? 'iwan@gmail.com' : 'wadda@gmail.com',
-        role: 'partner',
-        groupId: 'group_default'
+        nama: isIwan ? 'Iwan (Pribadi)' : 'Wadda (Pribadi)',
+        email: isIwan ? 'iwan@pribadi.com' : 'wadda@pribadi.com',
+        role: 'personal',
+        isJoint: false,
+        groupId: 'pribadi_' + activePinTarget
       };
 
-      setCurrentUser(user);
+      setCurrentUser(personalUser);
       closePinModal();
-      showToast(`PIN Benar! Selamat datang, ${user.nama} 👋`, 'success');
+      showToast(`PIN Benar! Masuk ke Mode Pribadi ${isIwan ? 'Iwan' : 'Wadda'} 👋`, 'success');
       setTimeout(() => {
         window.location.href = 'dashboard.html';
       }, 600);

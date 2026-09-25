@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function reloadData() {
     cashTransactions = getAllTransactions(user.uid);
-    debtEntries = window.DebtService ? window.DebtService.getLocalEntries() : [];
+    debtEntries = (isJointAccount() && window.DebtService) ? window.DebtService.getLocalEntries() : [];
 
     // Map Cash Transactions to unified view model
     const mappedCash = cashTransactions.map(t => ({
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   reloadData();
   syncFirestoreData(() => reloadData());
 
-  if (window.DebtService) {
+  if (isJointAccount() && window.DebtService) {
     window.DebtService.subscribeEntries(() => {
       reloadData();
     });

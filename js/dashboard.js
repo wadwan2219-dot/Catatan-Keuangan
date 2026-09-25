@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardMetrics(user.uid);
   });
 
-  // Subscribe to Real-Time Net Debt Ledger (Isolated from Cash)
-  if (window.DebtService && window.DebtEngine) {
+  // Subscribe to Real-Time Net Debt Ledger only for Joint Account (Iwan & Wadda)
+  if (isJointAccount() && window.DebtService && window.DebtEngine) {
     window.DebtService.subscribeEntries((debtEntries) => {
       updateDashboardDebtSummary(debtEntries);
     });

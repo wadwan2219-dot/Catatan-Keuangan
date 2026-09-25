@@ -239,24 +239,51 @@ function syncFirestoreData(onUpdateCallback) {
 }
 
 // --------------------------------------------------------------------------
-// 3-Actor Data Partitioning Helper (Iwan & Wadda share group_default, Umum separated)
+// Joint vs Personal Data Partitioning Helper & Debt Feature Visibility
 // --------------------------------------------------------------------------
+function isJointAccount() {
+  const user = getCurrentUser();
+  return Boolean(user && user.isJoint === true);
+}
+
+function setupDebtVisibility() {
+  const user = getCurrentUser();
+  const hasDebtAccess = Boolean(user && user.isJoint === true);
+  if (!hasDebtAccess) {
+    // Hide navigation links to hutang.html
+    document.querySelectorAll('a[href="hutang.html"]').forEach(el => {
+      el.style.display = 'none';
+    });
+    // Hide all elements marked with data-debt-feature
+    document.querySelectorAll('[data-debt-feature]').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+}
+document.addEventListener('DOMContentLoaded', setupDebtVisibility);
+
 function getUserTabungan(userId) {
   const all = getRawTabungan();
   const currentUser = getCurrentUser();
-  if (currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(currentUser.uid))) {
-    return all.filter(item => ['iwan', 'wadda'].includes(item.user_id) || item.group_id === 'group_default');
+  if (currentUser && currentUser.isJoint) {
+    // Akun bersama: melihat kas bersama
+    return all.filter(item => item.group_id === 'group_default');
   }
-  return all.filter(item => item.user_id === userId);
+  // Akun pribadi: hanya melihat catatan pribadinya
+  const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));
+  return all.filter(item => item.group_id === personalGroup || (!item.group_id && item.user_id === userId));
 }
 
 function getUserBelanja(userId) {
   const all = getRawBelanja();
   const currentUser = getCurrentUser();
-  if (currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(currentUser.uid))) {
-    return all.filter(item => ['iwan', 'wadda'].includes(item.user_id) || item.group_id === 'group_default');
+  if (currentUser && currentUser.isJoint) {
+    // Akun bersama: melihat kas belanja bersama
+    return all.filter(item => item.group_id === 'group_default');
   }
-  return all.filter(item => item.user_id === userId);
+  // Akun pribadi: hanya melihat belanja pribadinya
+  const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));
+  return all.filter(item => item.group_id === personalGroup || (!item.group_id && item.user_id === userId));
 }
 
 // Compute Balances dynamically from active database
@@ -280,8 +307,8 @@ function calculateUserBalance(userId) {
 // Add Tabungan (Income) directly to Supabase / Firebase / Local
 async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
   const currentUser = getCurrentUser();
-  const isPartner = currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(userId));
-  const groupId = isPartner ? 'group_default' : (userId || 'user_default');
+  const isJoint = currentUser && currentUser.isJoint === true;
+  const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
 
   const newItem = {
     id: 'tab_' + Date.now(),
@@ -328,8 +355,8 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
 // Add Belanja (Expense) directly to Supabase / Firebase / Local
 async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
   const currentUser = getCurrentUser();
-  const isPartner = currentUser && (currentUser.role === 'partner' || ['iwan', 'wadda'].includes(userId));
-  const groupId = isPartner ? 'group_default' : (userId || 'user_default');
+  const isJoint = currentUser && currentUser.isJoint === true;
+  const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
 
   const newItem = {
     id: 'bel_' + Date.now(),
