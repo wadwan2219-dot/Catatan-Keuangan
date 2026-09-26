@@ -7,15 +7,19 @@
 let activeTransactionFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
-  const user = requireAuth();
+  let user = getCurrentUser();
 
-  // Pastikan sesi aktif diarahkan ke Wadda
-  if (user.memberId !== 'wadda') {
-    user.memberId = 'wadda';
-    user.uid = 'wadda';
-    user.groupId = 'pribadi_wadda';
-    user.role = 'personal';
-    user.isJoint = false;
+  // Pastikan sesi aktif diarahkan ke Wadda (Pribadi)
+  if (!user || user.memberId !== 'wadda') {
+    user = {
+      uid: 'wadda',
+      memberId: 'wadda',
+      nama: 'Wadda (Pribadi)',
+      email: 'wadda@pribadi.com',
+      role: 'personal',
+      isJoint: false,
+      groupId: 'pribadi_wadda'
+    };
     setCurrentUser(user);
   }
 

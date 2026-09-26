@@ -5,16 +5,19 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  const user = requireAuth();
+  let user = getCurrentUser();
 
-  // Pastikan sesi aktif mengarah ke Iwan
-  if (user.memberId !== 'iwan') {
-    // Sesi diselaraskan ke Iwan jika masuk ke halaman ini
-    user.memberId = 'iwan';
-    user.uid = 'iwan';
-    user.groupId = 'pribadi_iwan';
-    user.role = 'personal';
-    user.isJoint = false;
+  // Pastikan sesi aktif mengarah ke Iwan (Pribadi)
+  if (!user || user.memberId !== 'iwan') {
+    user = {
+      uid: 'iwan',
+      memberId: 'iwan',
+      nama: 'Iwan (Pribadi)',
+      email: 'iwan@pribadi.com',
+      role: 'personal',
+      isJoint: false,
+      groupId: 'pribadi_iwan'
+    };
     setCurrentUser(user);
   }
 

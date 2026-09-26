@@ -183,16 +183,43 @@ function saveRawBelanja(list) {
  * Real-time Database Cloud Sync:
  * Supports Supabase Realtime (Priority) and Firebase Firestore.
  */
+function mergeRemoteData(remoteList, localList) {
+  if (!Array.isArray(remoteList)) return localList || [];
+  const map = new Map();
+  // 1. Authoritative remote data from Supabase
+  remoteList.forEach(item => {
+    if (item && item.id) map.set(item.id, item);
+  });
+  // 2. Keep local items created within the last 15 seconds (likely in-flight inserts)
+  if (Array.isArray(localList)) {
+    localList.forEach(item => {
+      if (item && item.id && !map.has(item.id)) {
+        const ts = Number(String(item.id).replace(/\D/g, '')) || 0;
+        if (Date.now() - ts < 15000) {
+          map.set(item.id, item);
+        }
+      }
+    });
+  }
+  return Array.from(map.values());
+}
+
 async function syncSupabaseData(onUpdateCallback) {
   if (!window.supabaseClient || !window.isSupabaseConnected()) return;
 
   try {
     // 1. Initial fetch from Supabase
     const { data: savings, error: errSav } = await window.supabaseClient.from('tabungan').select('*');
-    if (savings && !errSav) saveRawTabungan(savings);
+    if (savings && !errSav) {
+      const merged = mergeRemoteData(savings, getRawTabungan());
+      saveRawTabungan(merged);
+    }
 
     const { data: expenses, error: errExp } = await window.supabaseClient.from('belanja').select('*');
-    if (expenses && !errExp) saveRawBelanja(expenses);
+    if (expenses && !errExp) {
+      const merged = mergeRemoteData(expenses, getRawBelanja());
+      saveRawBelanja(merged);
+    }
 
     if (onUpdateCallback) onUpdateCallback();
 
@@ -201,11 +228,19 @@ async function syncSupabaseData(onUpdateCallback) {
       .channel('saldoku_cash_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tabungan' }, async () => {
         const { data } = await window.supabaseClient.from('tabungan').select('*');
-        if (data) { saveRawTabungan(data); if (onUpdateCallback) onUpdateCallback(); }
+        if (data) {
+          const merged = mergeRemoteData(data, getRawTabungan());
+          saveRawTabungan(merged);
+          if (onUpdateCallback) onUpdateCallback();
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'belanja' }, async () => {
         const { data } = await window.supabaseClient.from('belanja').select('*');
-        if (data) { saveRawBelanja(data); if (onUpdateCallback) onUpdateCallback(); }
+        if (data) {
+          const merged = mergeRemoteData(data, getRawBelanja());
+          saveRawBelanja(merged);
+          if (onUpdateCallback) onUpdateCallback();
+        }
       })
       .subscribe();
   } catch (err) {
@@ -314,28 +349,59 @@ function syncDashboardNavigationLinks() {
 }
 document.addEventListener('DOMContentLoaded', syncDashboardNavigationLinks);
 
+function isItemMatchingGroup(itemGroupId, targetGroup) {
+  if (!itemGroupId) return false;
+  return itemGroupId === targetGroup || itemGroupId.startsWith(targetGroup + ':');
+}
+
+function getItemPocket(item, defaultPocket) {
+  if (item.kantong === 'kas' || item.kantong === 'tabungan') return item.kantong;
+  if (item.sumber_dana === 'kas' || item.sumber_dana === 'tabungan') return item.sumber_dana;
+  if (item.group_id && item.group_id.endsWith(':kas')) return 'kas';
+  if (item.group_id && item.group_id.endsWith(':tabungan')) return 'tabungan';
+  return defaultPocket;
+}
+
 function getUserTabungan(userId) {
   const all = getRawTabungan();
   const currentUser = getCurrentUser();
-  if (isJointAccount()) {
-    // Akun bersama: melihat kas bersama (group_default atau tanpa group_id)
-    return all.filter(item => !item.group_id || item.group_id === 'group_default');
+
+  // Jika dipanggil dengan userId spesifik (misal 'wadda' atau 'iwan')
+  if (userId && (userId === 'iwan' || userId === 'wadda')) {
+    const personalGroup = 'pribadi_' + userId;
+    return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === userId));
   }
-  // Akun pribadi: hanya melihat catatan pribadinya
-  const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));
-  return all.filter(item => item.group_id === personalGroup || (!item.group_id && item.user_id === userId));
+
+  // Jika akun bersama
+  if (isJointAccount()) {
+    return all.filter(item => !item.group_id || isItemMatchingGroup(item.group_id, 'group_default'));
+  }
+
+  // Akun pribadi dari session aktif
+  const activeId = userId || (currentUser ? currentUser.uid : '');
+  const personalGroup = 'pribadi_' + activeId;
+  return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === activeId));
 }
 
 function getUserBelanja(userId) {
   const all = getRawBelanja();
   const currentUser = getCurrentUser();
-  if (isJointAccount()) {
-    // Akun bersama: melihat kas belanja bersama (group_default atau tanpa group_id)
-    return all.filter(item => !item.group_id || item.group_id === 'group_default');
+
+  // Jika dipanggil dengan userId spesifik (misal 'wadda' atau 'iwan')
+  if (userId && (userId === 'iwan' || userId === 'wadda')) {
+    const personalGroup = 'pribadi_' + userId;
+    return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === userId));
   }
-  // Akun pribadi: hanya melihat belanja pribadinya
-  const personalGroup = 'pribadi_' + (userId || (currentUser ? currentUser.uid : ''));
-  return all.filter(item => item.group_id === personalGroup || (!item.group_id && item.user_id === userId));
+
+  // Jika akun bersama
+  if (isJointAccount()) {
+    return all.filter(item => !item.group_id || isItemMatchingGroup(item.group_id, 'group_default'));
+  }
+
+  // Akun pribadi dari session aktif
+  const activeId = userId || (currentUser ? currentUser.uid : '');
+  const personalGroup = 'pribadi_' + activeId;
+  return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === activeId));
 }
 
 // Compute Balances dynamically from active database (Dual-Pocket: Kas Siap Pakai & Tabungan)
@@ -348,10 +414,10 @@ function calculateUserBalance(userId) {
   let tabunganMasuk = 0;
   savings.forEach(item => {
     const amt = Number(item.jumlah || 0);
-    if (item.kantong === 'kas') {
+    const pocket = getItemPocket(item, 'tabungan');
+    if (pocket === 'kas') {
       kasMasuk += amt;
     } else {
-      // Default & legacy fallback: goes to tabungan
       tabunganMasuk += amt;
     }
   });
@@ -361,10 +427,10 @@ function calculateUserBalance(userId) {
   let tabunganKeluar = 0;
   expenses.forEach(item => {
     const amt = Number(item.jumlah || 0);
-    if (item.sumber_dana === 'tabungan') {
+    const pocket = getItemPocket(item, 'kas');
+    if (pocket === 'tabungan') {
       tabunganKeluar += amt;
     } else {
-      // Default & legacy fallback: cuts from kas siap pakai
       kasKeluar += amt;
     }
   });
@@ -395,23 +461,23 @@ function calculateUserBalance(userId) {
 
 // Add Tabungan / Pemasukan directly to Supabase / Firebase / Local with pocket selector
 async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kantong = 'tabungan') {
-  const currentUser = getCurrentUser();
-  const isJoint = currentUser && currentUser.isJoint === true;
-  const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
+  const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
+  const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
   const pocket = kantong === 'kas' ? 'kas' : 'tabungan';
+  const fullGroupId = `${baseGroupId}:${pocket}`;
 
   const newItem = {
     id: 'tab_' + Date.now(),
     user_id: userId,
-    group_id: groupId,
+    group_id: fullGroupId,
     jumlah: Number(jumlah),
     keterangan: keterangan || (pocket === 'kas' ? 'Pemasukan Kas Siap Pakai' : 'Tabungan Masuk'),
     tanggal: tanggal || getTodayString(),
     kantong: pocket,
-    createdAt: new Date().toISOString()
+    created_at: new Date().toISOString()
   };
 
-  // 1. Try Supabase if connected
+  // 1. Try Supabase if connected (PostgreSQL Schema Strict Columns: id, user_id, group_id, jumlah, keterangan, tanggal)
   if (window.isSupabaseConnected && window.isSupabaseConnected()) {
     try {
       const dbRow = {
@@ -420,10 +486,14 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
         group_id: newItem.group_id,
         jumlah: newItem.jumlah,
         keterangan: newItem.keterangan,
-        tanggal: newItem.tanggal,
-        kantong: newItem.kantong
+        tanggal: newItem.tanggal
       };
-      await window.supabaseClient.from('tabungan').insert([dbRow]);
+      const { data, error } = await window.supabaseClient.from('tabungan').insert([dbRow]);
+      if (error) {
+        console.error('[Supabase] Tabungan insert error:', error);
+      } else {
+        console.log('[Supabase] Tabungan insert success:', newItem.id);
+      }
     } catch (e) {
       console.warn('Supabase write tabungan fallback:', e);
     }
@@ -438,7 +508,12 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
 
   // 2. Update Local Storage Cache
   const list = getRawTabungan();
-  list.unshift(newItem);
+  const existingIdx = list.findIndex(i => i.id === newItem.id);
+  if (existingIdx >= 0) {
+    list[existingIdx] = newItem;
+  } else {
+    list.unshift(newItem);
+  }
   saveRawTabungan(list);
 
   return newItem;
@@ -446,24 +521,24 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
 
 // Add Belanja / Pengeluaran directly to Supabase / Firebase / Local with pocket source
 async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal, sumber_dana = 'kas') {
-  const currentUser = getCurrentUser();
-  const isJoint = currentUser && currentUser.isJoint === true;
-  const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
+  const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
+  const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
   const pocketSource = sumber_dana === 'tabungan' ? 'tabungan' : 'kas';
+  const fullGroupId = `${baseGroupId}:${pocketSource}`;
 
   const newItem = {
     id: 'bel_' + Date.now(),
     user_id: userId,
-    group_id: groupId,
+    group_id: fullGroupId,
     nama_item: nama_item,
     jumlah: Number(jumlah),
     kategori: kategori || 'Umum',
     tanggal: tanggal || getTodayString(),
     sumber_dana: pocketSource,
-    createdAt: new Date().toISOString()
+    created_at: new Date().toISOString()
   };
 
-  // 1. Try Supabase if connected
+  // 1. Try Supabase if connected (PostgreSQL Schema Strict Columns: id, user_id, group_id, nama_item, jumlah, kategori, tanggal)
   if (window.isSupabaseConnected && window.isSupabaseConnected()) {
     try {
       const dbRow = {
@@ -473,10 +548,14 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
         nama_item: newItem.nama_item,
         jumlah: newItem.jumlah,
         kategori: newItem.kategori,
-        tanggal: newItem.tanggal,
-        sumber_dana: newItem.sumber_dana
+        tanggal: newItem.tanggal
       };
-      await window.supabaseClient.from('belanja').insert([dbRow]);
+      const { data, error } = await window.supabaseClient.from('belanja').insert([dbRow]);
+      if (error) {
+        console.error('[Supabase] Belanja insert error:', error);
+      } else {
+        console.log('[Supabase] Belanja insert success:', newItem.id);
+      }
     } catch (e) {
       console.warn('Supabase write belanja fallback:', e);
     }
@@ -491,7 +570,12 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
 
   // 2. Update Local Storage Cache
   const list = getRawBelanja();
-  list.unshift(newItem);
+  const existingIdx = list.findIndex(i => i.id === newItem.id);
+  if (existingIdx >= 0) {
+    list[existingIdx] = newItem;
+  } else {
+    list.unshift(newItem);
+  }
   saveRawBelanja(list);
 
   return newItem;
@@ -523,20 +607,26 @@ function getAllTransactions(userId) {
     ...t,
     type: 'tabungan',
     title: t.keterangan || 'Pemasukan',
-    amount: t.jumlah,
-    pocket: t.kantong || 'tabungan'
+    amount: Number(t.jumlah || 0),
+    pocket: getItemPocket(t, 'tabungan')
   }));
 
   const expenses = getUserBelanja(userId).map(b => ({
     ...b,
     type: 'belanja',
     title: b.nama_item || 'Pengeluaran',
-    amount: b.jumlah,
-    pocket: b.sumber_dana || 'kas'
+    amount: Number(b.jumlah || 0),
+    pocket: getItemPocket(b, 'kas')
   }));
 
   const combined = [...savings, ...expenses];
-  combined.sort((a, b) => new Date(b.tanggal + 'T' + (b.createdAt ? b.createdAt.substring(11,19) : '00:00:00')) - new Date(a.tanggal + 'T' + (a.createdAt ? a.createdAt.substring(11,19) : '00:00:00')));
+  combined.sort((a, b) => {
+    const timeA = a.created_at || a.createdAt || '';
+    const timeB = b.created_at || b.createdAt || '';
+    const dateComp = (b.tanggal || '').localeCompare(a.tanggal || '');
+    if (dateComp !== 0) return dateComp;
+    return timeB.localeCompare(timeA);
+  });
   return combined;
 }
 
@@ -555,7 +645,12 @@ async function deleteTransactionItem(id, type) {
   // Delete from Supabase
   if (window.isSupabaseConnected && window.isSupabaseConnected()) {
     try {
-      await window.supabaseClient.from(type).delete().eq('id', id);
+      const { error } = await window.supabaseClient.from(type).delete().eq('id', id);
+      if (error) {
+        console.error('[Supabase] Delete error:', error);
+      } else {
+        console.log('[Supabase] Delete success:', id);
+      }
     } catch (e) {
       console.warn('Supabase delete error:', e);
     }
