@@ -76,13 +76,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Add to store & Cloud Firestore DB
-      await addTabunganTransaction(user.uid, nominal, keterangan, tanggal);
+      const radioKantong = document.querySelector('input[name="tabungan-kantong"]:checked');
+      const kantong = radioKantong ? radioKantong.value : 'tabungan';
 
-      showToast(`Tabungan sebesar ${formatRupiah(nominal)} berhasil disimpan.`, 'success');
+      // Add to store & Cloud DB
+      await addTabunganTransaction(user.uid, nominal, keterangan, tanggal, kantong);
+
+      const targetLabel = kantong === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
+      showToast(`Pemasukan sebesar ${formatRupiah(nominal)} berhasil dicatat ke ${targetLabel}.`, 'success');
 
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = getDashboardUrl();
       }, 500);
     });
   }

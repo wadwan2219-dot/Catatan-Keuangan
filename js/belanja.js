@@ -100,20 +100,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const currentStats = calculateUserBalance(user.uid);
+      const radioSumber = document.querySelector('input[name="belanja-sumber"]:checked');
+      const sumberDana = radioSumber ? radioSumber.value : 'kas';
 
-      // Warn if user proceeds with deficit
-      if (nominal > currentStats.sisaSaldo) {
-        showToast('Peringatan: Saldo menjadi defisit.', 'warning');
+      const currentStats = calculateUserBalance(user.uid);
+      const avail = sumberDana === 'kas' ? currentStats.saldoKas : currentStats.saldoTabungan;
+      const pocketLabel = sumberDana === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
+
+      // Warn if user proceeds with deficit in the chosen pocket
+      if (nominal > avail) {
+        showToast(`Peringatan: Saldo ${pocketLabel} tidak mencukupi (defisit).`, 'warning');
       }
 
-      // Add to store & Cloud Firestore DB
-      await addBelanjaTransaction(user.uid, namaItem, nominal, kategori, tanggal);
+      // Add to store & Cloud DB
+      await addBelanjaTransaction(user.uid, namaItem, nominal, kategori, tanggal, sumberDana);
 
-      showToast(`Pengeluaran ${namaItem} (${formatRupiah(nominal)}) berhasil dicatat.`, 'success');
+      showToast(`Pengeluaran ${namaItem} (${formatRupiah(nominal)}) dipotong dari ${pocketLabel}.`, 'success');
 
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = getDashboardUrl();
       }, 500);
     });
   }

@@ -338,37 +338,76 @@ function getUserBelanja(userId) {
   return all.filter(item => item.group_id === personalGroup || (!item.group_id && item.user_id === userId));
 }
 
-// Compute Balances dynamically from active database
+// Compute Balances dynamically from active database (Dual-Pocket: Kas Siap Pakai & Tabungan)
 function calculateUserBalance(userId) {
   const savings = getUserTabungan(userId);
   const expenses = getUserBelanja(userId);
 
-  const totalTabungan = savings.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
-  const totalBelanja = expenses.reduce((sum, item) => sum + Number(item.jumlah || 0), 0);
-  const sisaSaldo = totalTabungan - totalBelanja;
+  // Income by pocket
+  let kasMasuk = 0;
+  let tabunganMasuk = 0;
+  savings.forEach(item => {
+    const amt = Number(item.jumlah || 0);
+    if (item.kantong === 'kas') {
+      kasMasuk += amt;
+    } else {
+      // Default & legacy fallback: goes to tabungan
+      tabunganMasuk += amt;
+    }
+  });
+
+  // Expense by pocket
+  let kasKeluar = 0;
+  let tabunganKeluar = 0;
+  expenses.forEach(item => {
+    const amt = Number(item.jumlah || 0);
+    if (item.sumber_dana === 'tabungan') {
+      tabunganKeluar += amt;
+    } else {
+      // Default & legacy fallback: cuts from kas siap pakai
+      kasKeluar += amt;
+    }
+  });
+
+  const saldoKas = kasMasuk - kasKeluar;
+  const saldoTabungan = tabunganMasuk - tabunganKeluar;
+  const totalAset = saldoKas + saldoTabungan;
+  const totalTabungan = tabunganMasuk + kasMasuk;
+  const totalBelanja = kasKeluar + tabunganKeluar;
+  const sisaSaldo = totalAset;
 
   return {
     totalTabungan,
     totalBelanja,
     sisaSaldo,
     countTabungan: savings.length,
-    countBelanja: expenses.length
+    countBelanja: expenses.length,
+    // Dual-pocket extensions (Opsi A)
+    saldoKas,
+    saldoTabungan,
+    totalAset,
+    kasMasuk,
+    tabunganMasuk,
+    kasKeluar,
+    tabunganKeluar
   };
 }
 
-// Add Tabungan (Income) directly to Supabase / Firebase / Local
-async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
+// Add Tabungan / Pemasukan directly to Supabase / Firebase / Local with pocket selector
+async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kantong = 'tabungan') {
   const currentUser = getCurrentUser();
   const isJoint = currentUser && currentUser.isJoint === true;
   const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
+  const pocket = kantong === 'kas' ? 'kas' : 'tabungan';
 
   const newItem = {
     id: 'tab_' + Date.now(),
     user_id: userId,
     group_id: groupId,
     jumlah: Number(jumlah),
-    keterangan: keterangan || 'Tabungan Masuk',
+    keterangan: keterangan || (pocket === 'kas' ? 'Pemasukan Kas Siap Pakai' : 'Tabungan Masuk'),
     tanggal: tanggal || getTodayString(),
+    kantong: pocket,
     createdAt: new Date().toISOString()
   };
 
@@ -381,7 +420,8 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
         group_id: newItem.group_id,
         jumlah: newItem.jumlah,
         keterangan: newItem.keterangan,
-        tanggal: newItem.tanggal
+        tanggal: newItem.tanggal,
+        kantong: newItem.kantong
       };
       await window.supabaseClient.from('tabungan').insert([dbRow]);
     } catch (e) {
@@ -404,11 +444,12 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal) {
   return newItem;
 }
 
-// Add Belanja (Expense) directly to Supabase / Firebase / Local
-async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal) {
+// Add Belanja / Pengeluaran directly to Supabase / Firebase / Local with pocket source
+async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal, sumber_dana = 'kas') {
   const currentUser = getCurrentUser();
   const isJoint = currentUser && currentUser.isJoint === true;
   const groupId = isJoint ? 'group_default' : ('pribadi_' + userId);
+  const pocketSource = sumber_dana === 'tabungan' ? 'tabungan' : 'kas';
 
   const newItem = {
     id: 'bel_' + Date.now(),
@@ -418,6 +459,7 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
     jumlah: Number(jumlah),
     kategori: kategori || 'Umum',
     tanggal: tanggal || getTodayString(),
+    sumber_dana: pocketSource,
     createdAt: new Date().toISOString()
   };
 
@@ -431,7 +473,8 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
         nama_item: newItem.nama_item,
         jumlah: newItem.jumlah,
         kategori: newItem.kategori,
-        tanggal: newItem.tanggal
+        tanggal: newItem.tanggal,
+        sumber_dana: newItem.sumber_dana
       };
       await window.supabaseClient.from('belanja').insert([dbRow]);
     } catch (e) {
@@ -454,20 +497,42 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
   return newItem;
 }
 
+// Transfer funds between pockets (Kas Siap Pakai <-> Tabungan)
+async function transferAntarKantong(userId, dariKantong, keKantong, jumlah, catatan, tanggal) {
+  const tgl = tanggal || getTodayString();
+  const amt = Number(jumlah);
+  if (!amt || amt <= 0) throw new Error('Nominal transfer tidak valid');
+
+  const labelDari = dariKantong === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
+  const labelKe = keKantong === 'tabungan' ? 'Tabungan' : 'Kas Siap Pakai';
+
+  const descOut = catatan ? `Pindah ke ${labelKe}: ${catatan}` : `Pindah Dana ke ${labelKe}`;
+  const descIn = catatan ? `Terima dari ${labelDari}: ${catatan}` : `Terima Dana dari ${labelDari}`;
+
+  // Deduct from source pocket
+  await addBelanjaTransaction(userId, descOut, amt, 'Pindah Dana', tgl, dariKantong);
+  // Add to destination pocket
+  await addTabunganTransaction(userId, amt, descIn, tgl, keKantong);
+
+  return true;
+}
+
 // Get All Transactions Merged & Sorted
 function getAllTransactions(userId) {
   const savings = getUserTabungan(userId).map(t => ({
     ...t,
     type: 'tabungan',
-    title: t.keterangan || 'Tabungan',
-    amount: t.jumlah
+    title: t.keterangan || 'Pemasukan',
+    amount: t.jumlah,
+    pocket: t.kantong || 'tabungan'
   }));
 
   const expenses = getUserBelanja(userId).map(b => ({
     ...b,
     type: 'belanja',
-    title: b.nama_item || 'Belanja',
-    amount: b.jumlah
+    title: b.nama_item || 'Pengeluaran',
+    amount: b.jumlah,
+    pocket: b.sumber_dana || 'kas'
   }));
 
   const combined = [...savings, ...expenses];

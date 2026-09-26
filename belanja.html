@@ -140,6 +140,29 @@
           </div>
         </div>
 
+        <!-- Pilihan Sumber Dana Pemotongan -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+            Potong Dari Kantong *
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center gap-3 p-3 rounded-xl border border-cyan-500/40 bg-cyan-500/10 cursor-pointer">
+              <input type="radio" name="belanja-sumber" value="kas" checked class="text-cyan-500 focus:ring-0">
+              <div class="text-xs">
+                <span class="font-bold text-cyan-300 block">Kas Siap Pakai</span>
+                <span class="text-[11px] text-slate-400">Standar belanja harian & operasional</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 cursor-pointer">
+              <input type="radio" name="belanja-sumber" value="tabungan" class="text-emerald-500 focus:ring-0">
+              <div class="text-xs">
+                <span class="font-bold text-emerald-300 block">Tabungan</span>
+                <span class="text-[11px] text-slate-400">Tarik dari simpanan terencana/darurat</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <!-- Kategori Selection Chips -->
         <div>
           <label for="belanja-kategori" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
