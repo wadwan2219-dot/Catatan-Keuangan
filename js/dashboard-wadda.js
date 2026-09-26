@@ -114,8 +114,362 @@ function loadWaddaDashboardMetrics() {
   if (labelAvailKas) labelAvailKas.textContent = `Sisa: ${formatRupiah(stats.saldoKas)}`;
   if (labelAvailTabungan) labelAvailTabungan.textContent = `Sisa: ${formatRupiah(stats.saldoTabungan)}`;
 
-  // 7. Render Transactions
+  // 7. Update Category Expense Analysis & Interactive Chart
+  loadCategoryExpenseAnalysis();
+
+  // 8. Render Transactions
   renderWaddaTransactions(transactions);
+}
+
+// --------------------------------------------------------------------------
+// Category Expense Analysis & Interactive Chart.js Implementation
+// --------------------------------------------------------------------------
+let waddaCategoryChart = null;
+let selectedExpenseMonth = 'current'; // 'current' | 'YYYY-MM' | 'all'
+let activeCategoryFilter = null;
+
+function normalizeCategoryName(rawCategory) {
+  if (!rawCategory) return 'Lainnya';
+  const lower = rawCategory.toLowerCase().trim();
+  if (lower.includes('bensin') || lower.includes('transport') || lower.includes('bbm') || lower.includes('bahan bakar')) {
+    return 'Bensin & Transportasi';
+  }
+  if (lower.includes('makan') || lower.includes('minum') || lower.includes('kuliner') || lower.includes('snack')) {
+    return 'Makanan & Minuman';
+  }
+  if (lower.includes('belanja') || lower.includes('sembako') || lower.includes('pasar') || lower.includes('kebutuhan')) {
+    return 'Belanja Kebutuhan';
+  }
+  if (lower.includes('tagihan') || lower.includes('listrik') || lower.includes('air') || lower.includes('wifi') || lower.includes('pulsa') || lower.includes('utilitas')) {
+    return 'Tagihan & Utilitas';
+  }
+  if (lower.includes('darurat') || lower.includes('medis') || lower.includes('obat') || lower.includes('dokter') || lower.includes('sehat')) {
+    return 'Kesehatan & Medis';
+  }
+  if (lower.includes('hiburan') || lower.includes('nonton') || lower.includes('rekreasi') || lower.includes('game') || lower.includes('liburan')) {
+    return 'Hiburan & Rekreasi';
+  }
+  if (lower.includes('pindah dana')) {
+    return 'Pindah Dana';
+  }
+  return rawCategory;
+}
+
+function getCategoryConfig(name) {
+  const configs = {
+    'Bensin & Transportasi': {
+      color: '#06b6d4', // Cyan
+      barClass: 'bg-cyan-500',
+      badgeClass: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>`
+    },
+    'Makanan & Minuman': {
+      color: '#f59e0b', // Amber
+      barClass: 'bg-amber-500',
+      badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>`
+    },
+    'Belanja Kebutuhan': {
+      color: '#a855f7', // Purple
+      barClass: 'bg-purple-500',
+      badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>`
+    },
+    'Tagihan & Utilitas': {
+      color: '#f43f5e', // Rose
+      barClass: 'bg-rose-500',
+      badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>`
+    },
+    'Kesehatan & Medis': {
+      color: '#10b981', // Emerald
+      barClass: 'bg-emerald-500',
+      badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>`
+    },
+    'Hiburan & Rekreasi': {
+      color: '#ec4899', // Pink
+      barClass: 'bg-pink-500',
+      badgeClass: 'bg-pink-500/10 text-pink-400 border-pink-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+    },
+    'Pindah Dana': {
+      color: '#38bdf8', // Sky
+      barClass: 'bg-sky-400',
+      badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/25',
+      iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>`
+    }
+  };
+
+  return configs[name] || {
+    color: '#64748b', // Slate
+    barClass: 'bg-slate-500',
+    badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/25',
+    iconSvg: `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>`
+  };
+}
+
+function formatIndoMonthYear(ymStr) {
+  if (!ymStr || ymStr.length < 7) return ymStr;
+  const [year, month] = ymStr.split('-');
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const mIndex = parseInt(month, 10) - 1;
+  const mName = monthNames[mIndex] || month;
+  return `${mName} ${year}`;
+}
+
+function initCategoryMonthSelector(allExpenses) {
+  const selectElem = document.getElementById('select-bulan-kategori');
+  if (!selectElem) return;
+
+  const currentYM = (getTodayString() || '').slice(0, 7);
+  const monthsSet = new Set();
+  monthsSet.add(currentYM);
+
+  allExpenses.forEach(item => {
+    if (item.tanggal && item.tanggal.length >= 7) {
+      monthsSet.add(item.tanggal.slice(0, 7));
+    }
+  });
+
+  const sortedMonths = Array.from(monthsSet).sort().reverse();
+
+  let optionsHtml = '';
+  sortedMonths.forEach(ym => {
+    const isCurrent = ym === currentYM;
+    const label = isCurrent ? `Bulan Ini (${formatIndoMonthYear(ym)})` : formatIndoMonthYear(ym);
+    const selected = (selectedExpenseMonth === 'current' && isCurrent) || selectedExpenseMonth === ym ? 'selected' : '';
+    optionsHtml += `<option value="${isCurrent ? 'current' : ym}" ${selected}>${label}</option>`;
+  });
+  optionsHtml += `<option value="all" ${selectedExpenseMonth === 'all' ? 'selected' : ''}>Semua Periode</option>`;
+
+  selectElem.innerHTML = optionsHtml;
+
+  selectElem.onchange = (e) => {
+    selectedExpenseMonth = e.target.value;
+    loadCategoryExpenseAnalysis();
+  };
+}
+
+function loadCategoryExpenseAnalysis() {
+  const allExpenses = getUserBelanja('wadda');
+  initCategoryMonthSelector(allExpenses);
+
+  const currentYM = (getTodayString() || '').slice(0, 7);
+  let filtered = allExpenses;
+
+  if (selectedExpenseMonth === 'current') {
+    filtered = allExpenses.filter(e => (e.tanggal || '').startsWith(currentYM));
+  } else if (selectedExpenseMonth !== 'all') {
+    filtered = allExpenses.filter(e => (e.tanggal || '').startsWith(selectedExpenseMonth));
+  }
+
+  const categoryTotals = {};
+  const categoryCounts = {};
+  let totalExpense = 0;
+
+  filtered.forEach(item => {
+    const cat = normalizeCategoryName(item.kategori);
+    const amt = Number(item.jumlah || 0);
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+    categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    totalExpense += amt;
+  });
+
+  const sortedCategories = Object.keys(categoryTotals).map(catName => ({
+    name: catName,
+    amount: categoryTotals[catName],
+    count: categoryCounts[catName],
+    percentage: totalExpense > 0 ? Math.round((categoryTotals[catName] / totalExpense) * 100) : 0,
+    config: getCategoryConfig(catName)
+  })).sort((a, b) => b.amount - a.amount);
+
+  // Update Total Badge in Header
+  const badgeTotal = document.getElementById('badge-total-kategori-bulan');
+  if (badgeTotal) badgeTotal.textContent = formatRupiah(totalExpense);
+
+  const containerContent = document.getElementById('container-kategori-content');
+  const emptyState = document.getElementById('empty-state-kategori');
+
+  if (sortedCategories.length === 0 || totalExpense <= 0) {
+    if (containerContent) containerContent.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+    renderCategoryChart([], 0);
+    return;
+  }
+
+  if (containerContent) containerContent.classList.remove('hidden');
+  if (emptyState) emptyState.classList.add('hidden');
+
+  // Update Central Donut Labels
+  const centerLabel = document.getElementById('donut-center-label');
+  const centerTotal = document.getElementById('donut-center-total');
+  const centerTop = document.getElementById('donut-center-top');
+
+  if (centerLabel) {
+    centerLabel.textContent = selectedExpenseMonth === 'current' ? 'Bulan Ini' : (selectedExpenseMonth === 'all' ? 'Total Belanja' : formatIndoMonthYear(selectedExpenseMonth));
+  }
+  if (centerTotal) centerTotal.textContent = formatRupiah(totalExpense);
+  if (centerTop && sortedCategories[0]) {
+    centerTop.textContent = `Top: ${sortedCategories[0].name} (${sortedCategories[0].percentage}%)`;
+  }
+
+  // Render Visual Chart & Category Progress Bars
+  renderCategoryChart(sortedCategories, totalExpense);
+  renderCategoryBars(sortedCategories, totalExpense);
+}
+
+function renderCategoryChart(categories, totalAmount) {
+  const canvas = document.getElementById('chart-kategori-pengeluaran');
+  if (!canvas) return;
+
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js belum siap termuat.');
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+
+  if (waddaCategoryChart) {
+    waddaCategoryChart.destroy();
+    waddaCategoryChart = null;
+  }
+
+  if (categories.length === 0 || totalAmount <= 0) {
+    waddaCategoryChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Belum Ada Pengeluaran'],
+        datasets: [{
+          data: [1],
+          backgroundColor: ['#1e293b'],
+          borderColor: '#0f172a',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '74%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false }
+        }
+      }
+    });
+    return;
+  }
+
+  const labels = categories.map(c => c.name);
+  const data = categories.map(c => c.amount);
+  const bgColors = categories.map(c => c.config.color);
+  const borderColors = categories.map(() => '#080d1a');
+
+  waddaCategoryChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 3,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '74%',
+      animation: {
+        animateScale: true,
+        animateRotate: true,
+        duration: 800
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0c1427',
+          borderColor: 'rgba(244, 63, 94, 0.3)',
+          borderWidth: 1,
+          titleColor: '#ffffff',
+          bodyColor: '#cbd5e1',
+          padding: 12,
+          boxPadding: 6,
+          usePointStyle: true,
+          callbacks: {
+            label: function(context) {
+              const val = context.raw || 0;
+              const pct = totalAmount > 0 ? Math.round((val / totalAmount) * 100) : 0;
+              return ` ${formatRupiah(val)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderCategoryBars(categories, totalAmount) {
+  const container = document.getElementById('list-kategori-progress');
+  if (!container) return;
+
+  let html = '';
+  categories.forEach(cat => {
+    const isActive = activeCategoryFilter === cat.name;
+    const ringClass = isActive 
+      ? 'ring-2 ring-cyan-400 bg-[#0e172e] border-cyan-500/50' 
+      : 'hover:border-slate-700 bg-[#090f20]/90 border-slate-800/90';
+
+    html += `
+      <div class="category-progress-item p-3.5 rounded-xl border ${ringClass} transition-all cursor-pointer group" data-category="${cat.name}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-lg ${cat.config.badgeClass} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+              ${cat.config.iconSvg}
+            </div>
+            <div class="truncate">
+              <span class="text-xs sm:text-sm font-bold text-white block truncate">${cat.name}</span>
+              <span class="text-[10px] text-slate-400 font-mono">${cat.count} transaksi di periode ini</span>
+            </div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <span class="text-xs sm:text-sm font-black font-mono text-white">${formatRupiah(cat.amount)}</span>
+            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-rose-400 bg-rose-500/10 ml-1.5 font-mono">${cat.percentage}%</span>
+          </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800">
+          <div class="h-full ${cat.config.barClass} rounded-full transition-all duration-700" style="width: ${cat.percentage}%;"></div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // Click on category bar to filter recent transactions
+  container.querySelectorAll('.category-progress-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const catName = el.getAttribute('data-category');
+      if (activeCategoryFilter === catName) {
+        activeCategoryFilter = null;
+      } else {
+        activeCategoryFilter = catName;
+      }
+      renderCategoryBars(categories, totalAmount);
+      renderWaddaTransactions(getAllTransactions('wadda'));
+      
+      const trxSection = document.getElementById('recent-transactions-list');
+      if (trxSection) {
+        trxSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
 }
 
 /**
@@ -125,6 +479,7 @@ function initTransactionFilters() {
   const btnAll = document.getElementById('filter-all');
   const btnKas = document.getElementById('filter-kas');
   const btnTabungan = document.getElementById('filter-tabungan');
+  const btnClearCategory = document.getElementById('btn-clear-category-filter');
 
   function setFilter(filterType) {
     activeTransactionFilter = filterType;
@@ -136,6 +491,8 @@ function initTransactionFilters() {
 
     if (filterType === 'all' && btnAll) {
       btnAll.className = 'btn-filter px-3 py-1.5 rounded-lg font-bold transition-all bg-indigo-600 text-white cursor-pointer';
+      activeCategoryFilter = null; // Reset category filter on All
+      loadCategoryExpenseAnalysis();
     } else if (filterType === 'kas' && btnKas) {
       btnKas.className = 'btn-filter px-3 py-1.5 rounded-lg font-bold transition-all bg-cyan-600 text-white cursor-pointer';
     } else if (filterType === 'tabungan' && btnTabungan) {
@@ -148,6 +505,14 @@ function initTransactionFilters() {
   if (btnAll) btnAll.addEventListener('click', () => setFilter('all'));
   if (btnKas) btnKas.addEventListener('click', () => setFilter('kas'));
   if (btnTabungan) btnTabungan.addEventListener('click', () => setFilter('tabungan'));
+
+  if (btnClearCategory) {
+    btnClearCategory.addEventListener('click', () => {
+      activeCategoryFilter = null;
+      loadCategoryExpenseAnalysis();
+      renderWaddaTransactions(getAllTransactions('wadda'));
+    });
+  }
 }
 
 /**
@@ -157,12 +522,29 @@ function renderWaddaTransactions(allList) {
   const container = document.getElementById('recent-transactions-list');
   if (!container) return;
 
-  // Filter based on active filter
+  // Filter based on active pocket filter (all / kas / tabungan)
   let filtered = allList;
   if (activeTransactionFilter === 'kas') {
     filtered = allList.filter(t => t.pocket === 'kas');
   } else if (activeTransactionFilter === 'tabungan') {
     filtered = allList.filter(t => t.pocket === 'tabungan');
+  }
+
+  // Filter based on active category filter (if selected from category chart)
+  const categoryBanner = document.getElementById('badge-active-category-filter');
+  const categoryNameEl = document.getElementById('name-active-category');
+
+  if (activeCategoryFilter) {
+    filtered = filtered.filter(t => {
+      if (t.type !== 'belanja') return false;
+      return normalizeCategoryName(t.kategori) === activeCategoryFilter;
+    });
+    if (categoryBanner) {
+      categoryBanner.classList.remove('hidden');
+      if (categoryNameEl) categoryNameEl.textContent = activeCategoryFilter;
+    }
+  } else {
+    if (categoryBanner) categoryBanner.classList.add('hidden');
   }
 
   if (filtered.length === 0) {
@@ -173,7 +555,7 @@ function renderWaddaTransactions(allList) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         </div>
-        <p class="text-xs font-semibold text-slate-300">Belum ada riwayat transaksi</p>
+        <p class="text-xs font-semibold text-slate-300">Belum ada riwayat transaksi${activeCategoryFilter ? ' untuk kategori ini' : ''}</p>
         <p class="text-[11px] text-slate-500 mt-0.5">Catatan transaksi akan tampil di sini.</p>
       </div>
     `;
