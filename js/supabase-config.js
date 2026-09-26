@@ -23,13 +23,35 @@ window.SUPABASE_CONFIG = getSupabaseConfig();
 
 let supabaseClient = null;
 
-if (typeof window.supabase !== 'undefined' && window.SUPABASE_CONFIG.url) {
-  try {
-    supabaseClient = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
-    console.log('[Supabase] Initialized successfully:', window.SUPABASE_CONFIG.url);
-  } catch (err) {
-    console.warn('[Supabase] Init error:', err);
+function initSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+  if (typeof window.supabase !== 'undefined' && window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) {
+    try {
+      supabaseClient = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      window.supabaseClient = supabaseClient;
+      console.log('[Supabase] Initialized successfully:', window.SUPABASE_CONFIG.url);
+      if (typeof window.onSupabaseReady === 'function') {
+        window.onSupabaseReady();
+      }
+      return supabaseClient;
+    } catch (err) {
+      console.warn('[Supabase] Init error:', err);
+    }
   }
+  return null;
+}
+
+initSupabaseClient();
+
+// If SDK script is still loading in background, retry periodically
+if (!supabaseClient) {
+  let attempts = 0;
+  const timer = setInterval(() => {
+    attempts++;
+    if (initSupabaseClient() || attempts > 25) {
+      clearInterval(timer);
+    }
+  }, 100);
 }
 
 window.supabaseClient = supabaseClient;
@@ -38,6 +60,26 @@ window.isSupabaseConnected = function () {
   return window.supabaseClient !== null &&
          window.SUPABASE_CONFIG &&
          Boolean(window.SUPABASE_CONFIG.url);
+};
+
+// Direct REST API Fallback (Guaranteed to work with zero dependencies)
+window.fetchSupabaseRest = async function (table) {
+  const cfg = window.SUPABASE_CONFIG || DEFAULT_SUPABASE_CONFIG;
+  if (!cfg || !cfg.url) return null;
+  try {
+    const res = await fetch(`${cfg.url}/rest/v1/${table}?select=*`, {
+      headers: {
+        apikey: cfg.anonKey,
+        Authorization: `Bearer ${cfg.anonKey}`
+      }
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.warn('[Supabase REST] Fetch error:', e);
+  }
+  return null;
 };
 
 // Save Supabase credentials helper

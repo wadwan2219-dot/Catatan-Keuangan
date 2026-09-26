@@ -259,12 +259,33 @@ function loadCategoryExpenseAnalysis() {
   initCategoryMonthSelector(allExpenses);
 
   const currentYM = (getTodayString() || '').slice(0, 7);
-  let filtered = allExpenses;
+  
+  // Deteksi bulan aktif yang memiliki data pengeluaran
+  const availableMonthsWithData = Array.from(new Set(
+    allExpenses
+      .filter(e => e.tanggal && e.tanggal.length >= 7)
+      .map(e => e.tanggal.slice(0, 7))
+  )).sort().reverse();
 
+  let activeMonth = selectedExpenseMonth;
+  // Jika mode default 'current' namun bulan berjalan belum ada transaksi sedangkan bulan lain ada data, otomatis tampilkan bulan terbaru yang ada datanya
   if (selectedExpenseMonth === 'current') {
+    const hasCurrentData = allExpenses.some(e => (e.tanggal || '').startsWith(currentYM));
+    if (!hasCurrentData && availableMonthsWithData.length > 0) {
+      activeMonth = availableMonthsWithData[0];
+    }
+  }
+
+  let filtered = allExpenses;
+  if (activeMonth === 'current') {
     filtered = allExpenses.filter(e => (e.tanggal || '').startsWith(currentYM));
-  } else if (selectedExpenseMonth !== 'all') {
-    filtered = allExpenses.filter(e => (e.tanggal || '').startsWith(selectedExpenseMonth));
+  } else if (activeMonth !== 'all') {
+    filtered = allExpenses.filter(e => (e.tanggal || '').startsWith(activeMonth));
+  }
+
+  const selectElem = document.getElementById('select-bulan-kategori');
+  if (selectElem && activeMonth !== selectedExpenseMonth) {
+    selectElem.value = activeMonth;
   }
 
   const categoryTotals = {};
@@ -310,7 +331,7 @@ function loadCategoryExpenseAnalysis() {
   const centerTop = document.getElementById('donut-center-top');
 
   if (centerLabel) {
-    centerLabel.textContent = selectedExpenseMonth === 'current' ? 'Bulan Ini' : (selectedExpenseMonth === 'all' ? 'Total Belanja' : formatIndoMonthYear(selectedExpenseMonth));
+    centerLabel.textContent = activeMonth === 'current' ? 'Bulan Ini' : (activeMonth === 'all' ? 'Total Belanja' : formatIndoMonthYear(activeMonth));
   }
   if (centerTotal) centerTotal.textContent = formatRupiah(totalExpense);
   if (centerTop && sortedCategories[0]) {
@@ -327,7 +348,8 @@ function renderCategoryChart(categories, totalAmount) {
   if (!canvas) return;
 
   if (typeof Chart === 'undefined') {
-    console.warn('Chart.js belum siap termuat.');
+    console.warn('Chart.js sedang memuat...');
+    setTimeout(() => renderCategoryChart(categories, totalAmount), 250);
     return;
   }
 

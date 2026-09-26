@@ -205,91 +205,99 @@ function mergeRemoteData(remoteList, localList) {
 }
 
 async function syncSupabaseData(onUpdateCallback) {
-  if (!window.supabaseClient || !window.isSupabaseConnected()) return;
-
   try {
-    // 1. Initial fetch from Supabase
-    const { data: savings, error: errSav } = await window.supabaseClient.from('tabungan').select('*');
-    if (savings && !errSav) {
+    let savings = null;
+    let expenses = null;
+
+    // 1. Try Supabase SDK first
+    if (window.supabaseClient && window.isSupabaseConnected()) {
+      try {
+        const { data: s } = await window.supabaseClient.from('tabungan').select('*');
+        const { data: e } = await window.supabaseClient.from('belanja').select('*');
+        if (s) savings = s;
+        if (e) expenses = e;
+      } catch (errSDK) {
+        console.warn('Supabase SDK query warning:', errSDK);
+      }
+    }
+
+    // 2. Guaranteed REST API fallback if SDK is still initializing or returned null
+    if ((!savings || !expenses) && typeof window.fetchSupabaseRest === 'function') {
+      if (!savings) savings = await window.fetchSupabaseRest('tabungan');
+      if (!expenses) expenses = await window.fetchSupabaseRest('belanja');
+    }
+
+    // 3. Save authoritative data
+    if (savings && Array.isArray(savings)) {
       const merged = mergeRemoteData(savings, getRawTabungan());
       saveRawTabungan(merged);
     }
 
-    const { data: expenses, error: errExp } = await window.supabaseClient.from('belanja').select('*');
-    if (expenses && !errExp) {
+    if (expenses && Array.isArray(expenses)) {
       const merged = mergeRemoteData(expenses, getRawBelanja());
       saveRawBelanja(merged);
     }
 
     if (onUpdateCallback) onUpdateCallback();
 
-    // 2. Realtime listener channel
-    window.supabaseClient
-      .channel('saldoku_cash_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tabungan' }, async () => {
-        const { data } = await window.supabaseClient.from('tabungan').select('*');
-        if (data) {
-          const merged = mergeRemoteData(data, getRawTabungan());
-          saveRawTabungan(merged);
-          if (onUpdateCallback) onUpdateCallback();
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'belanja' }, async () => {
-        const { data } = await window.supabaseClient.from('belanja').select('*');
-        if (data) {
-          const merged = mergeRemoteData(data, getRawBelanja());
-          saveRawBelanja(merged);
-          if (onUpdateCallback) onUpdateCallback();
-        }
-      })
-      .subscribe();
+    // 4. Attach Realtime listener channel if Supabase client is connected
+    if (window.supabaseClient && !window._supabaseChannelSubscribed) {
+      window._supabaseChannelSubscribed = true;
+      window.supabaseClient
+        .channel('saldoku_cash_channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tabungan' }, async () => {
+          const { data } = await window.supabaseClient.from('tabungan').select('*');
+          if (data) {
+            const merged = mergeRemoteData(data, getRawTabungan());
+            saveRawTabungan(merged);
+            if (onUpdateCallback) onUpdateCallback();
+          }
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'belanja' }, async () => {
+          const { data } = await window.supabaseClient.from('belanja').select('*');
+          if (data) {
+            const merged = mergeRemoteData(data, getRawBelanja());
+            saveRawBelanja(merged);
+            if (onUpdateCallback) onUpdateCallback();
+          }
+        })
+        .subscribe();
+    }
   } catch (err) {
     console.warn('Supabase sync error:', err);
+    if (onUpdateCallback) onUpdateCallback();
   }
 }
 
 function syncFirestoreData(onUpdateCallback) {
-  // If Supabase is connected, use Supabase Realtime
-  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+  // Always trigger Supabase sync immediately (SDK or direct REST fallback)
+  syncSupabaseData(onUpdateCallback);
+
+  // Hook if Supabase SDK completes background loading
+  window.onSupabaseReady = () => {
     syncSupabaseData(onUpdateCallback);
-    return;
-  }
+  };
 
-  if (!window.firebaseDb || !window.isFirebaseConnected()) {
-    if (onUpdateCallback) onUpdateCallback();
-    return;
-  }
-
-  try {
-    // 1. Realtime Listener for Collection 'tabungan'
-    window.firebaseDb.collection('tabungan').onSnapshot((snapshot) => {
-      const cloudSavings = [];
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        cloudSavings.push({ id: doc.id, ...d });
+  // Secondary Firebase Firestore support if active
+  if (window.firebaseDb && window.isFirebaseConnected && window.isFirebaseConnected()) {
+    try {
+      window.firebaseDb.collection('tabungan').onSnapshot((snapshot) => {
+        const cloudSavings = [];
+        snapshot.forEach(doc => { cloudSavings.push({ id: doc.id, ...doc.data() }); });
+        if (cloudSavings.length > 0) {
+          saveRawTabungan(cloudSavings);
+          if (onUpdateCallback) onUpdateCallback();
+        }
       });
-      saveRawTabungan(cloudSavings);
-      if (onUpdateCallback) onUpdateCallback();
-    }, err => {
-      console.warn('Firestore tabungan stream error:', err);
-    });
-
-    // 2. Realtime Listener for Collection 'belanja'
-    window.firebaseDb.collection('belanja').onSnapshot((snapshot) => {
-      const cloudExpenses = [];
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        cloudExpenses.push({ id: doc.id, ...d });
+      window.firebaseDb.collection('belanja').onSnapshot((snapshot) => {
+        const cloudExpenses = [];
+        snapshot.forEach(doc => { cloudExpenses.push({ id: doc.id, ...doc.data() }); });
+        if (cloudExpenses.length > 0) {
+          saveRawBelanja(cloudExpenses);
+          if (onUpdateCallback) onUpdateCallback();
+        }
       });
-      saveRawBelanja(cloudExpenses);
-      if (onUpdateCallback) onUpdateCallback();
-    }, err => {
-      console.warn('Firestore belanja stream error:', err);
-    });
-
-  } catch (err) {
-    console.warn('Firestore subscription failed:', err);
-    if (onUpdateCallback) onUpdateCallback();
+    } catch (e) {}
   }
 }
 
