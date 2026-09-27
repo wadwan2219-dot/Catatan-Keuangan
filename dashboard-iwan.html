@@ -167,10 +167,22 @@
           <h2 id="val-saldo-kas" class="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
             Rp 0
           </h2>
-          <p class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2">
             <span>Saldo aktif operasional</span>
             <span id="badge-status-kas" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300">Siap Pakai</span>
-          </p>
+          </div>
+          <!-- Sub-breakdown Bank vs Tunai -->
+          <div class="flex items-center justify-between gap-1 pt-2.5 mt-2.5 border-t border-slate-800/80 text-[10.5px] font-mono">
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0"></span>
+              Bank: <span id="sub-kas-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+            <span class="text-slate-700">•</span>
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              Tunai: <span id="sub-kas-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -189,10 +201,22 @@
           <h2 id="val-saldo-tabungan" class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
             Rp 0
           </h2>
-          <p class="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2">
             <span>Dana simpanan aman</span>
             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">Tersimpan</span>
-          </p>
+          </div>
+          <!-- Sub-breakdown Bank vs Tunai -->
+          <div class="flex items-center justify-between gap-1 pt-2.5 mt-2.5 border-t border-slate-800/80 text-[10.5px] font-mono">
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              Bank: <span id="sub-tabungan-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+            <span class="text-slate-700">•</span>
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"></span>
+              Tunai: <span id="sub-tabungan-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -211,9 +235,21 @@
           <h2 id="val-total-aset" class="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
             Rp 0
           </h2>
-          <p class="text-[11px] text-slate-400 mt-2">
-            Kalkulasi: <span class="text-slate-300 font-mono">Kas Siap Pakai + Tabungan</span>
-          </p>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2">
+            <span>Kas Siap Pakai + Tabungan</span>
+          </div>
+          <!-- Sub-breakdown Total Bank vs Total Tunai -->
+          <div class="flex items-center justify-between gap-1 pt-2.5 mt-2.5 border-t border-slate-800/80 text-[10.5px] font-mono">
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>
+              Bank: <span id="sub-total-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+            <span class="text-slate-700">•</span>
+            <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              Tunai: <span id="sub-total-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -430,6 +466,28 @@
           <p id="pemasukan-kantong-hint" class="text-[11px] text-cyan-400/80 mt-1">Uang masuk dapat langsung digunakan untuk kebutuhan harian.</p>
         </div>
 
+        <!-- Pilihan Bentuk Wadah (Rekening vs Tunai) -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Bentuk Uang (Wadah Simpan) *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btn-wadah-in-rekening" 
+                    class="py-2 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/20 text-indigo-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Rekening / Bank
+            </button>
+            <button type="button" id="btn-wadah-in-tunai" 
+                    class="py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Uang Tunai (Cash)
+            </button>
+          </div>
+          <input type="hidden" id="pemasukan-wadah" value="rekening">
+        </div>
+
         <!-- Nominal -->
         <div>
           <label for="pemasukan-nominal" class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nominal Pemasukan (Rp) *</label>
@@ -521,6 +579,28 @@
           <p id="pengeluaran-sumber-hint" class="text-[11px] text-cyan-400/80 mt-1">Standar belanja harian: tabungan tetap aman tidak tersentuh.</p>
         </div>
 
+        <!-- Pilihan Metode Pembayaran (Wadah Dana) -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Metode Pembayaran *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btn-wadah-out-rekening" 
+                    class="py-2 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/20 text-indigo-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Transfer / Bank / QRIS
+            </button>
+            <button type="button" id="btn-wadah-out-tunai" 
+                    class="py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Uang Tunai (Cash)
+            </button>
+          </div>
+          <input type="hidden" id="pengeluaran-wadah" value="rekening">
+        </div>
+
         <!-- Nama Barang / Keperluan -->
         <div>
           <label for="pengeluaran-nama" class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nama Barang / Keperluan *</label>
@@ -571,7 +651,7 @@
   </div>
 
   <!-- =================================================================== -->
-  <!-- MODAL 3: PINDAH DANA (TRANSFER ANTAR KANTONG)                       -->
+  <!-- MODAL 3: PINDAH DANA (TRANSFER ANTAR KANTONG & WADAH)                -->
   <!-- =================================================================== -->
   <div id="modal-transfer" class="fixed inset-0 z-50 bg-[#060a14]/80 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="w-full max-w-md bg-[#0c1427] border border-emerald-500/30 rounded-2xl p-6 shadow-2xl space-y-4 animate-fade-in relative">
@@ -585,8 +665,8 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-white">Pindah Dana Antar Kantong</h3>
-            <p class="text-[11px] text-slate-400">Transfer dana antara Kas Siap Pakai dan Tabungan.</p>
+            <h3 class="text-sm font-bold text-white">Pindah Dana</h3>
+            <p class="text-[11px] text-slate-400">Transfer antar kantong atau tarik/setor tunai ATM.</p>
           </div>
         </div>
         <button type="button" id="btn-close-modal-transfer" class="text-slate-400 hover:text-white p-1 cursor-pointer">
@@ -601,21 +681,37 @@
         
         <!-- Arah Pindah Dana -->
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Arah Pemindahan *</label>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Jenis Pemindahan *</label>
           <div class="space-y-2">
-            <label class="flex items-center gap-3 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 cursor-pointer">
+            <label class="flex items-center gap-3 p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 cursor-pointer">
               <input type="radio" name="arah-transfer" value="kas_to_tabungan" checked class="text-emerald-500 focus:ring-0">
               <div class="text-xs">
                 <span class="font-bold text-white block">Kas Siap Pakai ➔ Tabungan</span>
-                <span class="text-[11px] text-slate-400">Menyisihkan uang belanja ke simpanan aman.</span>
+                <span class="text-[10px] text-slate-400">Menyisihkan uang belanja ke simpanan aman.</span>
               </div>
             </label>
 
-            <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-700 bg-[#080d1a] cursor-pointer">
+            <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-700 bg-[#080d1a] cursor-pointer">
               <input type="radio" name="arah-transfer" value="tabungan_to_kas" class="text-emerald-500 focus:ring-0">
               <div class="text-xs">
                 <span class="font-bold text-white block">Tabungan ➔ Kas Siap Pakai</span>
-                <span class="text-[11px] text-slate-400">Mencairkan tabungan untuk kebutuhan operasional.</span>
+                <span class="text-[10px] text-slate-400">Mencairkan tabungan untuk kebutuhan operasional.</span>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-700 bg-[#080d1a] cursor-pointer">
+              <input type="radio" name="arah-transfer" value="tarik_tunai" class="text-emerald-500 focus:ring-0">
+              <div class="text-xs">
+                <span class="font-bold text-white block">Tarik Tunai ATM (Bank ➔ Uang Tunai)</span>
+                <span class="text-[10px] text-slate-400">Mengambil saldo bank menjadi uang kertas fisik di saku.</span>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-700 bg-[#080d1a] cursor-pointer">
+              <input type="radio" name="arah-transfer" value="setor_tunai" class="text-emerald-500 focus:ring-0">
+              <div class="text-xs">
+                <span class="font-bold text-white block">Setor Tunai (Uang Tunai ➔ Bank)</span>
+                <span class="text-[10px] text-slate-400">Menyetor uang fisik ke rekening bank / e-wallet.</span>
               </div>
             </label>
           </div>

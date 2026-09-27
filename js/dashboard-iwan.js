@@ -73,13 +73,31 @@ function loadIwanDashboardMetrics() {
     }
   }
 
+  // Sub-breakdown Card 1 (Kas Bank vs Tunai)
+  const subKasRekening = document.getElementById('sub-kas-rekening');
+  const subKasTunai = document.getElementById('sub-kas-tunai');
+  if (subKasRekening) subKasRekening.textContent = formatRupiah(stats.kasRekening);
+  if (subKasTunai) subKasTunai.textContent = formatRupiah(stats.kasTunai);
+
   // 2. Update Card 2: Tabungan Iwan
   const valTabungan = document.getElementById('val-saldo-tabungan');
   if (valTabungan) valTabungan.textContent = formatRupiah(stats.saldoTabungan);
 
+  // Sub-breakdown Card 2 (Tabungan Bank vs Tunai)
+  const subTabunganRekening = document.getElementById('sub-tabungan-rekening');
+  const subTabunganTunai = document.getElementById('sub-tabungan-tunai');
+  if (subTabunganRekening) subTabunganRekening.textContent = formatRupiah(stats.tabunganRekening);
+  if (subTabunganTunai) subTabunganTunai.textContent = formatRupiah(stats.tabunganTunai);
+
   // 3. Update Card 3: Total Aset Iwan
   const valAset = document.getElementById('val-total-aset');
   if (valAset) valAset.textContent = formatRupiah(stats.totalAset);
+
+  // Sub-breakdown Card 3 (Total Bank vs Total Tunai)
+  const subTotalRekening = document.getElementById('sub-total-rekening');
+  const subTotalTunai = document.getElementById('sub-total-tunai');
+  if (subTotalRekening) subTotalRekening.textContent = formatRupiah(stats.totalRekening);
+  if (subTotalTunai) subTotalTunai.textContent = formatRupiah(stats.totalTunai);
 
   // 4. Update Card 4: Total Pengeluaran
   const valBelanja = document.getElementById('val-total-belanja');
@@ -597,6 +615,12 @@ function renderIwanTransactions(allList) {
       ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 font-mono">Kas Siap Pakai</span>`
       : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-mono">Tabungan</span>`;
 
+    // Wadah Badge (Rekening vs Tunai)
+    const isTunai = t.wadah === 'tunai';
+    const wadahBadge = isTunai
+      ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono">Tunai</span>`
+      : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-800 border border-slate-700 text-slate-300 font-mono">Bank</span>`;
+
     const iconBox = isIncome
       ? `<div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center flex-shrink-0">
            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -618,6 +642,7 @@ function renderIwanTransactions(allList) {
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-[11px] text-slate-400 font-mono">${formatDate(t.tanggal)}</span>
               ${pocketBadge}
+              ${wadahBadge}
               ${t.kategori ? `<span class="text-[10px] text-slate-500 hidden sm:inline">• ${t.kategori}</span>` : ''}
             </div>
           </div>
@@ -680,27 +705,45 @@ function initIwanModals(user) {
   const inputKeteranganIn = document.getElementById('pemasukan-keterangan');
   const inputTanggalIn = document.getElementById('pemasukan-tanggal');
   const inputKantongIn = document.getElementById('pemasukan-kantong');
+  const inputWadahIn = document.getElementById('pemasukan-wadah');
   const btnAlokasiKas = document.getElementById('btn-alokasi-kas');
   const btnAlokasiTabungan = document.getElementById('btn-alokasi-tabungan');
+  const btnWadahInRekening = document.getElementById('btn-wadah-in-rekening');
+  const btnWadahInTunai = document.getElementById('btn-wadah-in-tunai');
   const hintAlokasi = document.getElementById('pemasukan-kantong-hint');
 
   function setAlokasiTujuan(kantong) {
-    inputKantongIn.value = kantong;
+    if (inputKantongIn) inputKantongIn.value = kantong;
     if (kantong === 'kas') {
-      btnAlokasiKas.className = 'py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
-      btnAlokasiTabungan.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      if (btnAlokasiKas) btnAlokasiKas.className = 'py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      if (btnAlokasiTabungan) btnAlokasiTabungan.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
       if (hintAlokasi) hintAlokasi.textContent = 'Uang masuk dapat langsung digunakan untuk kebutuhan harian.';
       if (hintAlokasi) hintAlokasi.className = 'text-[11px] text-cyan-400/80 mt-1';
     } else {
-      btnAlokasiTabungan.className = 'py-2.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
-      btnAlokasiKas.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      if (btnAlokasiTabungan) btnAlokasiTabungan.className = 'py-2.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      if (btnAlokasiKas) btnAlokasiKas.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
       if (hintAlokasi) hintAlokasi.textContent = 'Uang dialokasikan sebagai simpanan aman masa depan.';
       if (hintAlokasi) hintAlokasi.className = 'text-[11px] text-emerald-400/80 mt-1';
     }
   }
 
+  function setWadahIn(wadah) {
+    if (inputWadahIn) inputWadahIn.value = wadah;
+    if (btnWadahInRekening && btnWadahInTunai) {
+      if (wadah === 'rekening') {
+        btnWadahInRekening.className = 'py-2 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/20 text-indigo-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnWadahInTunai.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      } else {
+        btnWadahInTunai.className = 'py-2 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnWadahInRekening.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      }
+    }
+  }
+
   if (btnAlokasiKas) btnAlokasiKas.addEventListener('click', () => setAlokasiTujuan('kas'));
   if (btnAlokasiTabungan) btnAlokasiTabungan.addEventListener('click', () => setAlokasiTujuan('tabungan'));
+  if (btnWadahInRekening) btnWadahInRekening.addEventListener('click', () => setWadahIn('rekening'));
+  if (btnWadahInTunai) btnWadahInTunai.addEventListener('click', () => setWadahIn('tunai'));
 
   if (inputTanggalIn) inputTanggalIn.value = getTodayString();
 
@@ -708,6 +751,7 @@ function initIwanModals(user) {
     btnOpenPemasukan.addEventListener('click', () => {
       if (inputTanggalIn) inputTanggalIn.value = getTodayString();
       setAlokasiTujuan('kas');
+      setWadahIn('rekening');
       toggleModal('modal-pemasukan', true);
     });
   }
@@ -740,20 +784,23 @@ function initIwanModals(user) {
       const nominal = parseRupiah(inputNominalIn.value);
       const keterangan = inputKeteranganIn.value.trim() || 'Pemasukan Kas';
       const tanggal = inputTanggalIn.value || getTodayString();
-      const kantong = inputKantongIn.value || 'kas';
+      const kantong = inputKantongIn ? inputKantongIn.value : 'kas';
+      const wadah = inputWadahIn ? inputWadahIn.value : 'rekening';
 
       if (!nominal || nominal <= 0) {
         showToast('Nominal pemasukan harus lebih dari 0.', 'error');
         return;
       }
 
-      await addTabunganTransaction(user.uid, nominal, keterangan, tanggal, kantong);
+      await addTabunganTransaction(user.uid, nominal, keterangan, tanggal, kantong, wadah);
       const pocketLabel = kantong === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
-      showToast(`Pemasukan ${formatRupiah(nominal)} berhasil ditambahkan ke ${pocketLabel}!`, 'success');
+      const wadahLabel = wadah === 'tunai' ? 'Tunai' : 'Rekening Bank';
+      showToast(`Pemasukan ${formatRupiah(nominal)} berhasil dicatat ke ${pocketLabel} (${wadahLabel})!`, 'success');
 
       formPemasukan.reset();
       inputNominalIn.value = '';
       setAlokasiTujuan('kas');
+      setWadahIn('rekening');
       toggleModal('modal-pemasukan', false);
       loadIwanDashboardMetrics();
     });
@@ -770,29 +817,47 @@ function initIwanModals(user) {
   const selectKategoriOut = document.getElementById('pengeluaran-kategori');
   const inputTanggalOut = document.getElementById('pengeluaran-tanggal');
   const inputSumberOut = document.getElementById('pengeluaran-sumber');
+  const inputWadahOut = document.getElementById('pengeluaran-wadah');
   const btnSumberKas = document.getElementById('btn-sumber-kas');
   const btnSumberTabungan = document.getElementById('btn-sumber-tabungan');
+  const btnWadahOutRekening = document.getElementById('btn-wadah-out-rekening');
+  const btnWadahOutTunai = document.getElementById('btn-wadah-out-tunai');
   const hintSumber = document.getElementById('pengeluaran-sumber-hint');
   const boxWarning = document.getElementById('box-warning-defisit');
 
   function setSumberPengeluaran(sumber) {
-    inputSumberOut.value = sumber;
+    if (inputSumberOut) inputSumberOut.value = sumber;
     if (sumber === 'kas') {
-      btnSumberKas.className = 'py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
-      btnSumberTabungan.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+      if (btnSumberKas) btnSumberKas.className = 'py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+      if (btnSumberTabungan) btnSumberTabungan.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
       if (hintSumber) hintSumber.textContent = 'Standar belanja harian: tabungan tetap aman tidak tersentuh.';
       if (hintSumber) hintSumber.className = 'text-[11px] text-cyan-400/80 mt-1';
     } else {
-      btnSumberTabungan.className = 'py-2.5 px-3 rounded-xl border border-rose-500/40 bg-rose-500/20 text-rose-300 text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
-      btnSumberKas.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+      if (btnSumberTabungan) btnSumberTabungan.className = 'py-2.5 px-3 rounded-xl border border-rose-500/40 bg-rose-500/20 text-rose-300 text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+      if (btnSumberKas) btnSumberKas.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
       if (hintSumber) hintSumber.textContent = 'Perhatian: Mengambil dana simpanan tabungan.';
       if (hintSumber) hintSumber.className = 'text-[11px] text-rose-400/80 mt-1';
     }
     checkDefisit();
   }
 
+  function setWadahOut(wadah) {
+    if (inputWadahOut) inputWadahOut.value = wadah;
+    if (btnWadahOutRekening && btnWadahOutTunai) {
+      if (wadah === 'rekening') {
+        btnWadahOutRekening.className = 'py-2 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/20 text-indigo-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnWadahOutTunai.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      } else {
+        btnWadahOutTunai.className = 'py-2 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnWadahOutRekening.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      }
+    }
+  }
+
   if (btnSumberKas) btnSumberKas.addEventListener('click', () => setSumberPengeluaran('kas'));
   if (btnSumberTabungan) btnSumberTabungan.addEventListener('click', () => setSumberPengeluaran('tabungan'));
+  if (btnWadahOutRekening) btnWadahOutRekening.addEventListener('click', () => setWadahOut('rekening'));
+  if (btnWadahOutTunai) btnWadahOutTunai.addEventListener('click', () => setWadahOut('tunai'));
 
   if (inputTanggalOut) inputTanggalOut.value = getTodayString();
 
@@ -800,6 +865,7 @@ function initIwanModals(user) {
     btnOpenPengeluaran.addEventListener('click', () => {
       if (inputTanggalOut) inputTanggalOut.value = getTodayString();
       setSumberPengeluaran('kas');
+      setWadahOut('rekening');
       toggleModal('modal-pengeluaran', true);
     });
   }
@@ -811,7 +877,7 @@ function initIwanModals(user) {
   function checkDefisit() {
     if (!boxWarning) return;
     const nominal = parseRupiah(inputNominalOut.value) || 0;
-    const sumber = inputSumberOut.value;
+    const sumber = inputSumberOut ? inputSumberOut.value : 'kas';
     const stats = calculateUserBalance('iwan');
     const available = sumber === 'kas' ? stats.saldoKas : stats.saldoTabungan;
 
@@ -839,7 +905,8 @@ function initIwanModals(user) {
       const nominal = parseRupiah(inputNominalOut.value);
       const kategori = selectKategoriOut.value || 'Umum';
       const tanggal = inputTanggalOut.value || getTodayString();
-      const sumberDana = inputSumberOut.value || 'kas';
+      const sumberDana = inputSumberOut ? inputSumberOut.value : 'kas';
+      const wadah = inputWadahOut ? inputWadahOut.value : 'rekening';
 
       if (!nama) {
         showToast('Nama barang atau keperluan harus diisi.', 'error');
@@ -850,21 +917,23 @@ function initIwanModals(user) {
         return;
       }
 
-      await addBelanjaTransaction(user.uid, nama, nominal, kategori, tanggal, sumberDana);
+      await addBelanjaTransaction(user.uid, nama, nominal, kategori, tanggal, sumberDana, wadah);
       const sourceLabel = sumberDana === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
-      showToast(`Pengeluaran ${formatRupiah(nominal)} berhasil dipotong dari ${sourceLabel}.`, 'success');
+      const wadahLabel = wadah === 'tunai' ? 'Tunai' : 'Rekening';
+      showToast(`Pengeluaran ${formatRupiah(nominal)} dipotong dari ${sourceLabel} (${wadahLabel}).`, 'success');
 
       formPengeluaran.reset();
       inputNominalOut.value = '';
       if (boxWarning) boxWarning.classList.add('hidden');
       setSumberPengeluaran('kas');
+      setWadahOut('rekening');
       toggleModal('modal-pengeluaran', false);
       loadIwanDashboardMetrics();
     });
   }
 
   // ------------------------------------------------------------------------
-  // MODAL 3: PINDAH DANA
+  // MODAL 3: PINDAH DANA (TRANSFER ANTAR KANTONG & WADAH)
   // ------------------------------------------------------------------------
   const btnOpenTransfer = document.getElementById('btn-open-modal-transfer');
   const btnCloseTransfer = document.getElementById('btn-close-modal-transfer');
@@ -901,17 +970,56 @@ function initIwanModals(user) {
       }
 
       const stats = calculateUserBalance('iwan');
-      const dari = arah === 'kas_to_tabungan' ? 'kas' : 'tabungan';
-      const ke = arah === 'kas_to_tabungan' ? 'tabungan' : 'kas';
-      const avail = dari === 'kas' ? stats.saldoKas : stats.saldoTabungan;
+      let dariKantong = 'kas';
+      let keKantong = 'tabungan';
+      let dariWadah = 'rekening';
+      let keWadah = 'rekening';
+      let toastMsg = '';
 
-      if (nominal > avail) {
-        showToast(`Saldo ${dari === 'kas' ? 'Kas Siap Pakai' : 'Tabungan'} tidak mencukupi untuk transfer!`, 'error');
-        return;
+      if (arah === 'kas_to_tabungan') {
+        dariKantong = 'kas';
+        keKantong = 'tabungan';
+        dariWadah = 'rekening';
+        keWadah = 'rekening';
+        if (nominal > stats.saldoKas) {
+          showToast(`Saldo Kas Siap Pakai tidak mencukupi untuk transfer!`, 'error');
+          return;
+        }
+        toastMsg = `Pindah dana ${formatRupiah(nominal)} dari Kas ke Tabungan berhasil.`;
+      } else if (arah === 'tabungan_to_kas') {
+        dariKantong = 'tabungan';
+        keKantong = 'kas';
+        dariWadah = 'rekening';
+        keWadah = 'rekening';
+        if (nominal > stats.saldoTabungan) {
+          showToast(`Saldo Tabungan tidak mencukupi untuk transfer!`, 'error');
+          return;
+        }
+        toastMsg = `Pencairan dana ${formatRupiah(nominal)} dari Tabungan ke Kas berhasil.`;
+      } else if (arah === 'tarik_tunai') {
+        dariKantong = 'kas';
+        keKantong = 'kas';
+        dariWadah = 'rekening';
+        keWadah = 'tunai';
+        if (nominal > stats.totalRekening) {
+          showToast(`Saldo Bank (${formatRupiah(stats.totalRekening)}) tidak mencukupi untuk tarik tunai!`, 'error');
+          return;
+        }
+        toastMsg = `Tarik tunai ATM ${formatRupiah(nominal)} (Bank ➔ Tunai) berhasil dicatat.`;
+      } else if (arah === 'setor_tunai') {
+        dariKantong = 'kas';
+        keKantong = 'kas';
+        dariWadah = 'tunai';
+        keWadah = 'rekening';
+        if (nominal > stats.totalTunai) {
+          showToast(`Uang tunai fisik (${formatRupiah(stats.totalTunai)}) tidak mencukupi untuk disetor!`, 'error');
+          return;
+        }
+        toastMsg = `Setor tunai ${formatRupiah(nominal)} (Tunai ➔ Bank) berhasil dicatat.`;
       }
 
-      await transferAntarKantong(user.uid, dari, ke, nominal, catatan);
-      showToast(`Pindah dana ${formatRupiah(nominal)} berhasil diproses.`, 'success');
+      await transferAntarKantong(user.uid, dariKantong, keKantong, nominal, catatan, getTodayString(), dariWadah, keWadah);
+      showToast(toastMsg, 'success');
 
       formTransfer.reset();
       inputNominalTransfer.value = '';

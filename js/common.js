@@ -365,9 +365,32 @@ function isItemMatchingGroup(itemGroupId, targetGroup) {
 function getItemPocket(item, defaultPocket) {
   if (item.kantong === 'kas' || item.kantong === 'tabungan') return item.kantong;
   if (item.sumber_dana === 'kas' || item.sumber_dana === 'tabungan') return item.sumber_dana;
-  if (item.group_id && item.group_id.endsWith(':kas')) return 'kas';
-  if (item.group_id && item.group_id.endsWith(':tabungan')) return 'tabungan';
+  if (item.group_id) {
+    const parts = item.group_id.split(':');
+    if (parts.includes('kas')) return 'kas';
+    if (parts.includes('tabungan')) return 'tabungan';
+    if (item.group_id.endsWith(':kas')) return 'kas';
+    if (item.group_id.endsWith(':tabungan')) return 'tabungan';
+  }
   return defaultPocket;
+}
+
+function getItemWadah(item, defaultWadah = 'rekening') {
+  if (item.wadah === 'tunai' || item.wadah === 'cash') return 'tunai';
+  if (item.wadah === 'rekening' || item.wadah === 'bank') return 'rekening';
+  if (item.group_id) {
+    const parts = item.group_id.split(':');
+    if (parts.includes('tunai') || parts.includes('cash')) return 'tunai';
+    if (parts.includes('rekening') || parts.includes('bank')) return 'rekening';
+  }
+  const text = ((item.keterangan || '') + ' ' + (item.nama_item || '') + ' ' + (item.catatan || '')).toLowerCase();
+  if (text.includes('cash') || text.includes('tunai') || text.includes('uang fisik') || text.includes('dompet')) {
+    return 'tunai';
+  }
+  if (text.includes('seabank') || text.includes('bca') || text.includes('bri') || text.includes('bni') || text.includes('mandiri') || text.includes('bank') || text.includes('transfer') || text.includes('tf') || text.includes('qris') || text.includes('gopay') || text.includes('ovo') || text.includes('dana')) {
+    return 'rekening';
+  }
+  return defaultWadah;
 }
 
 function getUserTabungan(userId) {
@@ -412,34 +435,68 @@ function getUserBelanja(userId) {
   return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === activeId));
 }
 
-// Compute Balances dynamically from active database (Dual-Pocket: Kas Siap Pakai & Tabungan)
+// Compute Balances dynamically from active database (Dual-Pocket + Dual-Wadah: Rekening vs Tunai)
 function calculateUserBalance(userId) {
   const savings = getUserTabungan(userId);
   const expenses = getUserBelanja(userId);
 
-  // Income by pocket
+  // Income by pocket & wadah
   let kasMasuk = 0;
   let tabunganMasuk = 0;
+  let kasMasukRekening = 0;
+  let kasMasukTunai = 0;
+  let tabunganMasukRekening = 0;
+  let tabunganMasukTunai = 0;
+
   savings.forEach(item => {
     const amt = Number(item.jumlah || 0);
     const pocket = getItemPocket(item, 'tabungan');
+    const wadah = getItemWadah(item, 'rekening');
+
     if (pocket === 'kas') {
       kasMasuk += amt;
+      if (wadah === 'tunai') {
+        kasMasukTunai += amt;
+      } else {
+        kasMasukRekening += amt;
+      }
     } else {
       tabunganMasuk += amt;
+      if (wadah === 'tunai') {
+        tabunganMasukTunai += amt;
+      } else {
+        tabunganMasukRekening += amt;
+      }
     }
   });
 
-  // Expense by pocket
+  // Expense by pocket & wadah
   let kasKeluar = 0;
   let tabunganKeluar = 0;
+  let kasKeluarRekening = 0;
+  let kasKeluarTunai = 0;
+  let tabunganKeluarRekening = 0;
+  let tabunganKeluarTunai = 0;
+
   expenses.forEach(item => {
     const amt = Number(item.jumlah || 0);
     const pocket = getItemPocket(item, 'kas');
+    const wadah = getItemWadah(item, 'rekening');
+
     if (pocket === 'tabungan') {
       tabunganKeluar += amt;
+      if (wadah === 'tunai') {
+        tabunganKeluarTunai += amt;
+      } else {
+        tabunganKeluarRekening += amt;
+      }
     } else {
       kasKeluar += amt;
+      if (wadah === 'tunai') {
+        kasKeluarTunai += amt;
+      } else {
+        kasKeluarRekening += amt;
+      }
     }
   });
 
@@ -449,6 +506,14 @@ function calculateUserBalance(userId) {
   const totalTabungan = tabunganMasuk + kasMasuk;
   const totalBelanja = kasKeluar + tabunganKeluar;
   const sisaSaldo = totalAset;
+
+  // Breakdown Wadah (Rekening Bank/Digital vs Uang Tunai/Cash)
+  const kasRekening = kasMasukRekening - kasKeluarRekening;
+  const kasTunai = kasMasukTunai - kasKeluarTunai;
+  const tabunganRekening = tabunganMasukRekening - tabunganKeluarRekening;
+  const tabunganTunai = tabunganMasukTunai - tabunganKeluarTunai;
+  const totalRekening = (kasMasukRekening + tabunganMasukRekening) - (kasKeluarRekening + tabunganKeluarRekening);
+  const totalTunai = (kasMasukTunai + tabunganMasukTunai) - (kasKeluarTunai + tabunganKeluarTunai);
 
   return {
     totalTabungan,
@@ -463,16 +528,24 @@ function calculateUserBalance(userId) {
     kasMasuk,
     tabunganMasuk,
     kasKeluar,
-    tabunganKeluar
+    tabunganKeluar,
+    // Dual-wadah extensions (Rekening vs Tunai)
+    kasRekening,
+    kasTunai,
+    tabunganRekening,
+    tabunganTunai,
+    totalRekening,
+    totalTunai
   };
 }
 
-// Add Tabungan / Pemasukan directly to Supabase / Firebase / Local with pocket selector
-async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kantong = 'tabungan') {
+// Add Tabungan / Pemasukan directly to Supabase / Firebase / Local with pocket & wadah selector
+async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kantong = 'tabungan', wadah = 'rekening') {
   const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
   const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
   const pocket = kantong === 'kas' ? 'kas' : 'tabungan';
-  const fullGroupId = `${baseGroupId}:${pocket}`;
+  const wadahClean = wadah === 'tunai' ? 'tunai' : 'rekening';
+  const fullGroupId = `${baseGroupId}:${pocket}:${wadahClean}`;
 
   const newItem = {
     id: 'tab_' + Date.now(),
@@ -482,6 +555,7 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
     keterangan: keterangan || (pocket === 'kas' ? 'Pemasukan Kas Siap Pakai' : 'Tabungan Masuk'),
     tanggal: tanggal || getTodayString(),
     kantong: pocket,
+    wadah: wadahClean,
     created_at: new Date().toISOString()
   };
 
@@ -527,12 +601,13 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
   return newItem;
 }
 
-// Add Belanja / Pengeluaran directly to Supabase / Firebase / Local with pocket source
-async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal, sumber_dana = 'kas') {
+// Add Belanja / Pengeluaran directly to Supabase / Firebase / Local with pocket & wadah source
+async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal, sumber_dana = 'kas', wadah = 'rekening') {
   const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
   const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
   const pocketSource = sumber_dana === 'tabungan' ? 'tabungan' : 'kas';
-  const fullGroupId = `${baseGroupId}:${pocketSource}`;
+  const wadahClean = wadah === 'tunai' ? 'tunai' : 'rekening';
+  const fullGroupId = `${baseGroupId}:${pocketSource}:${wadahClean}`;
 
   const newItem = {
     id: 'bel_' + Date.now(),
@@ -543,6 +618,7 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
     kategori: kategori || 'Umum',
     tanggal: tanggal || getTodayString(),
     sumber_dana: pocketSource,
+    wadah: wadahClean,
     created_at: new Date().toISOString()
   };
 
@@ -589,22 +665,33 @@ async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tangga
   return newItem;
 }
 
-// Transfer funds between pockets (Kas Siap Pakai <-> Tabungan)
-async function transferAntarKantong(userId, dariKantong, keKantong, jumlah, catatan, tanggal) {
+// Transfer funds between pockets or wadah (Kas Siap Pakai <-> Tabungan & Rekening <-> Tunai)
+async function transferAntarKantong(userId, dariKantong, keKantong, jumlah, catatan, tanggal, dariWadah = 'rekening', keWadah = 'rekening') {
   const tgl = tanggal || getTodayString();
   const amt = Number(jumlah);
   if (!amt || amt <= 0) throw new Error('Nominal transfer tidak valid');
 
-  const labelDari = dariKantong === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
-  const labelKe = keKantong === 'tabungan' ? 'Tabungan' : 'Kas Siap Pakai';
+  const labelDariK = dariKantong === 'kas' ? 'Kas Siap Pakai' : 'Tabungan';
+  const labelKeK = keKantong === 'tabungan' ? 'Tabungan' : 'Kas Siap Pakai';
+  const labelDariW = dariWadah === 'tunai' ? 'Tunai' : 'Rekening';
+  const labelKeW = keWadah === 'tunai' ? 'Tunai' : 'Rekening';
 
-  const descOut = catatan ? `Pindah ke ${labelKe}: ${catatan}` : `Pindah Dana ke ${labelKe}`;
-  const descIn = catatan ? `Terima dari ${labelDari}: ${catatan}` : `Terima Dana dari ${labelDari}`;
+  // Build clear, clean description
+  let descTransfer = `Pindah ke ${labelKeK}`;
+  let descReceive = `Terima dari ${labelDariK}`;
+  if (dariWadah !== keWadah) {
+    descTransfer = `Pindah (${labelDariW} ➔ ${labelKeW})`;
+    descReceive = `Terima (${labelDariW} ➔ ${labelKeW})`;
+  }
+  if (catatan) {
+    descTransfer += `: ${catatan}`;
+    descReceive += `: ${catatan}`;
+  }
 
-  // Deduct from source pocket
-  await addBelanjaTransaction(userId, descOut, amt, 'Pindah Dana', tgl, dariKantong);
-  // Add to destination pocket
-  await addTabunganTransaction(userId, amt, descIn, tgl, keKantong);
+  // Deduct from source pocket & wadah
+  await addBelanjaTransaction(userId, descTransfer, amt, 'Pindah Dana', tgl, dariKantong, dariWadah);
+  // Add to destination pocket & wadah
+  await addTabunganTransaction(userId, amt, descReceive, tgl, keKantong, keWadah);
 
   return true;
 }
@@ -616,7 +703,8 @@ function getAllTransactions(userId) {
     type: 'tabungan',
     title: t.keterangan || 'Pemasukan',
     amount: Number(t.jumlah || 0),
-    pocket: getItemPocket(t, 'tabungan')
+    pocket: getItemPocket(t, 'tabungan'),
+    wadah: getItemWadah(t, 'rekening')
   }));
 
   const expenses = getUserBelanja(userId).map(b => ({
@@ -624,7 +712,8 @@ function getAllTransactions(userId) {
     type: 'belanja',
     title: b.nama_item || 'Pengeluaran',
     amount: Number(b.jumlah || 0),
-    pocket: getItemPocket(b, 'kas')
+    pocket: getItemPocket(b, 'kas'),
+    wadah: getItemWadah(b, 'rekening')
   }));
 
   const combined = [...savings, ...expenses];
