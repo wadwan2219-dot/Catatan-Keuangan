@@ -6,6 +6,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
 
+  // Logout Handler
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      logoutUser();
+    });
+  }
+
   const inputNamaItem = document.getElementById('belanja-nama');
   const inputNominal = document.getElementById('belanja-nominal');
   const selectKategori = document.getElementById('belanja-kategori');

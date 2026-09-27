@@ -116,14 +116,27 @@ function logoutUser() {
   if (window.firebaseAuth) {
     try { window.firebaseAuth.signOut(); } catch (e) {}
   }
+  if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.auth) {
+    try { supabaseClient.auth.signOut(); } catch (e) {}
+  }
   localStorage.removeItem('saldoku_user_session');
   localStorage.removeItem('saldoku_data_tabungan');
   localStorage.removeItem('saldoku_data_belanja');
   showToast('Sesi telah diakhiri.', 'info');
   setTimeout(() => {
     window.location.href = 'index.html';
-  }, 500);
+  }, 400);
 }
+
+// Global Universal Logout Delegation
+// Automatically captures clicks on any #btn-logout or .btn-logout across all pages and views
+document.addEventListener('click', (e) => {
+  const logoutBtn = e.target.closest('#btn-logout') || e.target.closest('.btn-logout');
+  if (logoutBtn) {
+    e.preventDefault();
+    logoutUser();
+  }
+});
 
 function requireAuth() {
   const user = getCurrentUser();

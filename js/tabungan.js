@@ -6,6 +6,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
 
+  // Logout Handler
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      logoutUser();
+    });
+  }
+
   const inputNominal = document.getElementById('tabungan-nominal');
   const inputKeterangan = document.getElementById('tabungan-keterangan');
   const inputTanggal = document.getElementById('tabungan-tanggal');

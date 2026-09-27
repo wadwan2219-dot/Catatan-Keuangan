@@ -7,6 +7,15 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
 
+  // Logout Handler
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      logoutUser();
+    });
+  }
+
   const filterTypeSelect = document.getElementById('filter-type');
   const searchInput = document.getElementById('search-keyword');
   const btnExportCsv = document.getElementById('btn-export-csv');
