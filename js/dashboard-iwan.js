@@ -1131,7 +1131,11 @@ function initIwanModals(user) {
 
     if (item.type === 'belanja') {
       if (boxKategori) boxKategori.classList.remove('hidden');
-      if (selectKategori) selectKategori.value = item.kategori || 'Umum';
+      if (selectKategori) {
+        const normCat = normalizeCategoryName(item.kategori);
+        selectKategori.value = normCat;
+        if (!selectKategori.value) selectKategori.value = 'Lainnya';
+      }
       if (titleElem) titleElem.textContent = 'Edit Pengeluaran';
       if (subTitleElem) subTitleElem.textContent = 'Koreksi rincian pengeluaran dana.';
       if (iconBox) iconBox.className = 'w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center';
