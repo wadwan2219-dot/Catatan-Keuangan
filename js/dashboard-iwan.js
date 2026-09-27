@@ -648,22 +648,39 @@ function renderIwanTransactions(allList) {
           </div>
         </div>
 
-        <div class="flex items-center gap-3 flex-shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div class="text-right">
             <span class="text-xs sm:text-sm font-black font-mono ${amountColor}">${sign} ${formatRupiah(t.amount)}</span>
           </div>
-          <button type="button" data-del-id="${t.id}" data-del-type="${t.type}" title="Hapus Transaksi" 
-                  class="btn-delete-transaksi p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-70 group-hover:opacity-100 cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <div class="flex items-center gap-1">
+            <button type="button" data-edit-id="${t.id}" data-edit-type="${t.type}" title="Edit Transaksi" 
+                    class="btn-edit-transaksi p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors cursor-pointer">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button type="button" data-del-id="${t.id}" data-del-type="${t.type}" title="Hapus Transaksi" 
+                    class="btn-delete-transaksi p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     `;
   });
 
   container.innerHTML = html;
+
+  // Bind Edit buttons
+  container.querySelectorAll('.btn-edit-transaksi').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-edit-id');
+      const type = btn.getAttribute('data-edit-type');
+      openIwanEditModal(id, type);
+    });
+  });
 
   // Bind Delete buttons
   container.querySelectorAll('.btn-delete-transaksi').forEach(btn => {
@@ -1028,8 +1045,145 @@ function initIwanModals(user) {
     });
   }
 
+  // ------------------------------------------------------------------------
+  // MODAL 4: EDIT TRANSAKSI (DYNAMIC, FAST & REALTIME)
+  // ------------------------------------------------------------------------
+  const formEdit = document.getElementById('form-modal-edit');
+  const btnCloseEdit = document.getElementById('btn-close-modal-edit');
+  const btnCancelEdit = document.getElementById('btn-cancel-modal-edit');
+  const inputNominalEdit = document.getElementById('edit-nominal');
+  const inputKantongEdit = document.getElementById('edit-kantong');
+  const inputWadahEdit = document.getElementById('edit-wadah');
+  const btnEditKas = document.getElementById('btn-edit-kantong-kas');
+  const btnEditTab = document.getElementById('btn-edit-kantong-tabungan');
+  const btnEditWadahRek = document.getElementById('btn-edit-wadah-rekening');
+  const btnEditWadahTun = document.getElementById('btn-edit-wadah-tunai');
+
+  function setEditKantong(pocket) {
+    if (inputKantongEdit) inputKantongEdit.value = pocket;
+    if (btnEditKas && btnEditTab) {
+      if (pocket === 'kas') {
+        btnEditKas.className = 'py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-cyan-500/20 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditTab.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditKas.querySelector('span').className = 'w-2 h-2 rounded-full bg-cyan-400';
+        btnEditTab.querySelector('span').className = 'w-2 h-2 rounded-full bg-slate-600';
+      } else {
+        btnEditTab.className = 'py-2.5 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditKas.className = 'py-2.5 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditTab.querySelector('span').className = 'w-2 h-2 rounded-full bg-emerald-400';
+        btnEditKas.querySelector('span').className = 'w-2 h-2 rounded-full bg-slate-600';
+      }
+    }
+  }
+
+  function setEditWadah(wadah) {
+    if (inputWadahEdit) inputWadahEdit.value = wadah;
+    if (btnEditWadahRek && btnEditWadahTun) {
+      if (wadah === 'rekening') {
+        btnEditWadahRek.className = 'py-2 px-3 rounded-xl border border-indigo-500/40 bg-indigo-500/20 text-indigo-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditWadahTun.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      } else {
+        btnEditWadahTun.className = 'py-2 px-3 rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer';
+        btnEditWadahRek.className = 'py-2 px-3 rounded-xl border border-slate-700 bg-[#080d1a] text-slate-400 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer';
+      }
+    }
+  }
+
+  if (btnEditKas) btnEditKas.addEventListener('click', () => setEditKantong('kas'));
+  if (btnEditTab) btnEditTab.addEventListener('click', () => setEditKantong('tabungan'));
+  if (btnEditWadahRek) btnEditWadahRek.addEventListener('click', () => setEditWadah('rekening'));
+  if (btnEditWadahTun) btnEditWadahTun.addEventListener('click', () => setEditWadah('tunai'));
+
+  if (btnCloseEdit) btnCloseEdit.addEventListener('click', () => toggleModal('modal-edit-transaksi', false));
+  if (btnCancelEdit) btnCancelEdit.addEventListener('click', () => toggleModal('modal-edit-transaksi', false));
+
+  if (inputNominalEdit) {
+    inputNominalEdit.addEventListener('input', (e) => {
+      const numeric = parseRupiah(e.target.value);
+      e.target.value = numeric ? new Intl.NumberFormat('id-ID').format(numeric) : '';
+    });
+  }
+
+  function openIwanEditModal(id, type) {
+    const transactions = getAllTransactions('iwan');
+    const item = transactions.find(t => t.id === id);
+    if (!item) return;
+
+    const inputId = document.getElementById('edit-transaksi-id');
+    const inputType = document.getElementById('edit-transaksi-type');
+    const inputTitle = document.getElementById('edit-title');
+    const inputNominal = document.getElementById('edit-nominal');
+    const inputTanggal = document.getElementById('edit-tanggal');
+    const boxKategori = document.getElementById('box-edit-kategori');
+    const selectKategori = document.getElementById('edit-kategori');
+    const titleElem = document.getElementById('edit-modal-title');
+    const subTitleElem = document.getElementById('edit-modal-subtitle');
+    const iconBox = document.getElementById('edit-header-icon');
+
+    if (inputId) inputId.value = item.id;
+    if (inputType) inputType.value = item.type;
+    if (inputTitle) inputTitle.value = item.title;
+    if (inputNominal) inputNominal.value = new Intl.NumberFormat('id-ID').format(item.amount);
+    if (inputTanggal) inputTanggal.value = item.tanggal || getTodayString();
+
+    setEditKantong(item.pocket || 'kas');
+    setEditWadah(item.wadah || 'rekening');
+
+    if (item.type === 'belanja') {
+      if (boxKategori) boxKategori.classList.remove('hidden');
+      if (selectKategori) selectKategori.value = item.kategori || 'Umum';
+      if (titleElem) titleElem.textContent = 'Edit Pengeluaran';
+      if (subTitleElem) subTitleElem.textContent = 'Koreksi rincian pengeluaran dana.';
+      if (iconBox) iconBox.className = 'w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center';
+    } else {
+      if (boxKategori) boxKategori.classList.add('hidden');
+      if (titleElem) titleElem.textContent = 'Edit Pemasukan';
+      if (subTitleElem) subTitleElem.textContent = 'Koreksi rincian dana masuk.';
+      if (iconBox) iconBox.className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center';
+    }
+
+    toggleModal('modal-edit-transaksi', true);
+  }
+  window.openIwanEditModal = openIwanEditModal;
+
+  if (formEdit) {
+    formEdit.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-transaksi-id').value;
+      const type = document.getElementById('edit-transaksi-type').value;
+      const title = document.getElementById('edit-title').value.trim();
+      const nominal = parseRupiah(inputNominalEdit.value);
+      const pocket = document.getElementById('edit-kantong').value || 'kas';
+      const wadah = document.getElementById('edit-wadah').value || 'rekening';
+      const tanggal = document.getElementById('edit-tanggal').value || getTodayString();
+      const kategori = document.getElementById('edit-kategori') ? document.getElementById('edit-kategori').value : 'Umum';
+
+      if (!title) {
+        showToast('Keterangan transaksi harus diisi.', 'error');
+        return;
+      }
+      if (!nominal || nominal <= 0) {
+        showToast('Nominal transaksi harus lebih dari 0.', 'error');
+        return;
+      }
+
+      await updateTransactionItem(id, type, {
+        title,
+        jumlah: nominal,
+        tanggal,
+        pocket,
+        wadah,
+        kategori
+      });
+
+      showToast('Transaksi berhasil diperbarui.', 'success');
+      toggleModal('modal-edit-transaksi', false);
+      loadIwanDashboardMetrics();
+    });
+  }
+
   // Close modals on clicking background or Escape key
-  ['modal-pemasukan', 'modal-pengeluaran', 'modal-transfer'].forEach(mId => {
+  ['modal-pemasukan', 'modal-pengeluaran', 'modal-transfer', 'modal-edit-transaksi'].forEach(mId => {
     const el = document.getElementById(mId);
     if (el) {
       el.addEventListener('click', (e) => {
@@ -1040,7 +1194,7 @@ function initIwanModals(user) {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      ['modal-pemasukan', 'modal-pengeluaran', 'modal-transfer'].forEach(mId => toggleModal(mId, false));
+      ['modal-pemasukan', 'modal-pengeluaran', 'modal-transfer', 'modal-edit-transaksi'].forEach(mId => toggleModal(mId, false));
     }
   });
 }

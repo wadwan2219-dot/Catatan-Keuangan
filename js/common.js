@@ -770,3 +770,134 @@ async function deleteTransactionItem(id, type) {
     } catch (e) {}
   }
 }
+
+// Update Transaction in Cloud & Local (Dynamic, Fast & Real-time)
+async function updateTransactionItem(id, type, updatedData) {
+  const pocket = updatedData.pocket === 'tabungan' ? 'tabungan' : 'kas';
+  const wadah = updatedData.wadah === 'tunai' ? 'tunai' : 'rekening';
+  const jumlah = Number(updatedData.jumlah) || 0;
+  const tanggal = updatedData.tanggal || getTodayString();
+
+  if (type === 'tabungan') {
+    let list = getRawTabungan();
+    const idx = list.findIndex(item => item.id === id);
+    if (idx === -1) return null;
+
+    const currentItem = list[idx];
+    const userId = currentItem.user_id || 'iwan';
+    const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
+    const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+    const fullGroupId = `${baseGroupId}:${pocket}:${wadah}`;
+    const keterangan = updatedData.title || updatedData.keterangan || currentItem.keterangan;
+
+    const updatedItem = {
+      ...currentItem,
+      group_id: fullGroupId,
+      jumlah: jumlah,
+      keterangan: keterangan,
+      tanggal: tanggal,
+      kantong: pocket,
+      wadah: wadah,
+      updated_at: new Date().toISOString()
+    };
+
+    list[idx] = updatedItem;
+    saveRawTabungan(list);
+
+    // Update in Supabase
+    if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+      try {
+        const dbRow = {
+          group_id: fullGroupId,
+          jumlah: updatedItem.jumlah,
+          keterangan: updatedItem.keterangan,
+          tanggal: updatedItem.tanggal
+        };
+        const { error } = await window.supabaseClient.from('tabungan').update(dbRow).eq('id', id);
+        if (error) {
+          console.error('[Supabase] Tabungan update error:', error);
+        } else {
+          console.log('[Supabase] Tabungan update success:', id);
+        }
+      } catch (e) {
+        console.warn('Supabase update tabungan fallback:', e);
+      }
+    } else if (window.firebaseDb && window.isFirebaseConnected()) {
+      try {
+        await window.firebaseDb.collection('tabungan').doc(id).update({
+          group_id: fullGroupId,
+          jumlah: updatedItem.jumlah,
+          keterangan: updatedItem.keterangan,
+          tanggal: updatedItem.tanggal,
+          kantong: pocket,
+          wadah: wadah
+        });
+      } catch (e) {}
+    }
+
+    return updatedItem;
+  } else if (type === 'belanja') {
+    let list = getRawBelanja();
+    const idx = list.findIndex(item => item.id === id);
+    if (idx === -1) return null;
+
+    const currentItem = list[idx];
+    const userId = currentItem.user_id || 'iwan';
+    const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
+    const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+    const fullGroupId = `${baseGroupId}:${pocket}:${wadah}`;
+    const namaItem = updatedData.title || updatedData.nama_item || currentItem.nama_item;
+    const kategori = updatedData.kategori || currentItem.kategori || 'Umum';
+
+    const updatedItem = {
+      ...currentItem,
+      group_id: fullGroupId,
+      nama_item: namaItem,
+      jumlah: jumlah,
+      kategori: kategori,
+      tanggal: tanggal,
+      sumber_dana: pocket,
+      wadah: wadah,
+      updated_at: new Date().toISOString()
+    };
+
+    list[idx] = updatedItem;
+    saveRawBelanja(list);
+
+    // Update in Supabase
+    if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+      try {
+        const dbRow = {
+          group_id: fullGroupId,
+          nama_item: updatedItem.nama_item,
+          jumlah: updatedItem.jumlah,
+          kategori: updatedItem.kategori,
+          tanggal: updatedItem.tanggal
+        };
+        const { error } = await window.supabaseClient.from('belanja').update(dbRow).eq('id', id);
+        if (error) {
+          console.error('[Supabase] Belanja update error:', error);
+        } else {
+          console.log('[Supabase] Belanja update success:', id);
+        }
+      } catch (e) {
+        console.warn('Supabase update belanja fallback:', e);
+      }
+    } else if (window.firebaseDb && window.isFirebaseConnected()) {
+      try {
+        await window.firebaseDb.collection('belanja').doc(id).update({
+          group_id: fullGroupId,
+          nama_item: updatedItem.nama_item,
+          jumlah: updatedItem.jumlah,
+          kategori: updatedItem.kategori,
+          tanggal: updatedItem.tanggal,
+          sumber_dana: pocket,
+          wadah: wadah
+        });
+      } catch (e) {}
+    }
+
+    return updatedItem;
+  }
+  return null;
+}
