@@ -29,6 +29,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const formLogin = document.getElementById('form-login');
   const formRegister = document.getElementById('form-register');
 
+  // Background cloud registry sync
+  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+    try {
+      const raw = localStorage.getItem('saldoku_registered_accounts');
+      if (raw) {
+        const list = JSON.parse(raw);
+        const toSync = list.filter(u => u && u.email && u.role !== 'admin').map(u => ({
+          id: u.uid || u.email,
+          nama: u.nama || u.email.split('@')[0],
+          email: u.email,
+          role: u.role || 'user'
+        }));
+        if (toSync.length > 0) {
+          window.supabaseClient.from('users').upsert(toSync, { onConflict: 'id' }).then(() => {});
+        }
+      }
+    } catch (e) {}
+  }
+
   // Tab switching logic
   if (tabLoginBtn && tabRegisterBtn) {
     tabLoginBtn.addEventListener('click', () => {
@@ -102,15 +121,45 @@ document.addEventListener('DOMContentLoaded', () => {
             uid: fbUser.uid,
             email: email,
             nama: nama,
-            role: 'partner',
+            role: 'user',
+            status: 'active',
             isJoint: true,
             groupId: workspaceId,
             memberId: 'bersama',
+            features: {
+              debt_ledger: true,
+              dual_pocket: true,
+              cash_bank_split: true,
+              export_reports: true
+            },
             createdAt: new Date().toISOString()
           };
 
           if (window.firebaseDb) {
             await window.firebaseDb.collection('users').doc(fbUser.uid).set(userData);
+          }
+
+          // Also save in local registry
+          try {
+            let reg = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
+            if (!reg.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+              reg.push(userData);
+              localStorage.setItem('saldoku_registered_accounts', JSON.stringify(reg));
+            }
+          } catch (e) {}
+
+          // Mirror to Supabase public.users in realtime
+          if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+            try {
+              await window.supabaseClient.from('users').upsert([{
+                id: fbUser.uid,
+                nama: nama,
+                email: email,
+                role: 'user'
+              }], { onConflict: 'id' });
+            } catch (sbErr) {
+              console.warn('[Register] Supabase mirror fallback:', sbErr);
+            }
           }
 
           setCurrentUser(userData);
@@ -239,6 +288,18 @@ document.addEventListener('DOMContentLoaded', () => {
             userObj.groupId = getActiveWorkspaceId(userObj);
           }
 
+          // Sync to Supabase public.users on successful login
+          if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+            try {
+              window.supabaseClient.from('users').upsert([{
+                id: fbUser.uid,
+                nama: userObj.nama,
+                email: userObj.email,
+                role: userObj.role || 'user'
+              }], { onConflict: 'id' }).then(() => {});
+            } catch (sbErr) {}
+          }
+
           setCurrentUser(userObj);
           showToast('Autentikasi berhasil. Membuka Akun Bersama.', 'success');
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
@@ -332,6 +393,18 @@ document.addEventListener('DOMContentLoaded', () => {
         isJoint: true,
         groupId: foundUser.groupId || (typeof getActiveWorkspaceId === 'function' ? getActiveWorkspaceId(foundUser) : 'fam_wadwan_main')
       };
+
+      // Sync user to Supabase public.users
+      if (window.isSupabaseConnected && window.isSupabaseConnected() && foundUser.email !== 'admin@saldoku.id') {
+        try {
+          window.supabaseClient.from('users').upsert([{
+            id: foundUser.uid || foundUser.email,
+            nama: foundUser.nama || foundUser.email.split('@')[0],
+            email: foundUser.email,
+            role: foundUser.role || 'user'
+          }], { onConflict: 'id' }).then(() => {});
+        } catch (sbErr) {}
+      }
 
       setCurrentUser(jointUser);
       showToast('Berhasil masuk ke Akun Bersama.', 'success');

@@ -152,6 +152,25 @@ function getCurrentUser() {
 
 function setCurrentUser(userObj) {
   localStorage.setItem('saldoku_user_session', JSON.stringify(userObj));
+  if (userObj && userObj.email && userObj.role !== 'admin') {
+    const syncToCloud = () => {
+      if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+        try {
+          window.supabaseClient.from('users').upsert([{
+            id: userObj.uid || userObj.email,
+            nama: userObj.nama || userObj.email.split('@')[0],
+            email: userObj.email,
+            role: userObj.role || 'user'
+          }], { onConflict: 'id' }).then(() => {});
+        } catch (e) {}
+      }
+    };
+    if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+      syncToCloud();
+    } else {
+      setTimeout(syncToCloud, 500);
+    }
+  }
 }
 
 function logoutUser() {

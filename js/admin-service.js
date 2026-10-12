@@ -179,11 +179,80 @@
       } catch (err) {
         console.warn('[AdminService] Supabase users fetch fallback:', err);
       }
+
+      // 3. Scan Supabase debt_entries, tabungan, and belanja to discover any active accounts
+      try {
+        const { data: debtRows } = await window.supabaseClient.from('debt_entries').select('created_by_uid, created_by_name, group_id, created_at');
+        if (debtRows) {
+          debtRows.forEach(row => {
+            if (row && row.created_by_uid && row.created_by_uid !== 'anon') {
+              const nameClean = row.created_by_name || 'Pengguna';
+              let found = false;
+              for (const u of userMap.values()) {
+                if (u.uid === row.created_by_uid || (u.nama && u.nama.toLowerCase() === nameClean.toLowerCase())) {
+                  found = true;
+                  break;
+                }
+              }
+              if (!found) {
+                const syntheticEmail = nameClean.toLowerCase().replace(/[^a-z0-9]/g, '') + '@saldoku.id';
+                userMap.set(syntheticEmail, {
+                  uid: row.created_by_uid,
+                  email: syntheticEmail,
+                  nama: nameClean,
+                  role: 'user',
+                  status: 'active',
+                  workspace_id: row.group_id ? row.group_id.split(':')[0] : ('fam_' + row.created_by_uid),
+                  created_at: row.created_at || new Date().toISOString(),
+                  last_login: row.created_at || null,
+                  features: { ...DEFAULT_FEATURES }
+                });
+              }
+            }
+          });
+        }
+      } catch (e) {}
+
+      try {
+        const { data: tabRows } = await window.supabaseClient.from('tabungan').select('user_id, group_id, created_at');
+        if (tabRows) {
+          tabRows.forEach(row => {
+            if (row && row.user_id && row.user_id !== 'iwan' && row.user_id !== 'wadda' && row.user_id !== 'bersama') {
+              let found = false;
+              for (const u of userMap.values()) {
+                if (u.uid === row.user_id || u.email.toLowerCase().startsWith(row.user_id.toLowerCase())) {
+                  found = true;
+                  break;
+                }
+              }
+              if (!found) {
+                const syntheticEmail = row.user_id.toLowerCase().replace(/[^a-z0-9]/g, '') + '@saldoku.id';
+                userMap.set(syntheticEmail, {
+                  uid: row.user_id,
+                  email: syntheticEmail,
+                  nama: 'Pengguna (' + row.user_id + ')',
+                  role: 'user',
+                  status: 'active',
+                  workspace_id: row.group_id ? row.group_id.split(':')[0] : ('fam_' + row.user_id),
+                  created_at: row.created_at || new Date().toISOString(),
+                  last_login: row.created_at || null,
+                  features: { ...DEFAULT_FEATURES }
+                });
+              }
+            }
+          });
+        }
+      } catch (e) {}
     }
 
-    // 3. Fetch from Cloud Firestore if connected
+    // 4. Fetch from Cloud Firestore with Anonymous Auth if unauthenticated
     if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
       try {
+        if (window.firebaseAuth && !window.firebaseAuth.currentUser) {
+          try {
+            await window.firebaseAuth.signInAnonymously();
+          } catch (authErr) {}
+        }
         const snapshot = await window.firebaseDb.collection('users').get();
         snapshot.forEach(doc => {
           const d = doc.data();
@@ -206,6 +275,26 @@
       } catch (err) {
         console.warn('[AdminService] Firestore users fetch fallback:', err);
       }
+    }
+
+    // Auto-heal / sync all discovered users to Supabase users table
+    if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+      try {
+        const toSync = [];
+        userMap.forEach((u) => {
+          if (u.uid && u.email && u.role !== 'admin') {
+            toSync.push({
+              id: u.uid,
+              nama: u.nama || u.email.split('@')[0],
+              email: u.email,
+              role: u.role || 'user'
+            });
+          }
+        });
+        if (toSync.length > 0) {
+          window.supabaseClient.from('users').upsert(toSync, { onConflict: 'id' }).then(() => {});
+        }
+      } catch (syncErr) {}
     }
 
     // Apply any local feature flags overrides

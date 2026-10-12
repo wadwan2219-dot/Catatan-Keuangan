@@ -41,14 +41,85 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 3. Load Initial Data
+  // 3. Initialize Live Realtime Cloud Synchronization
+  initAdminRealtimeSync();
+
+  // 4. Load Initial Data
   await loadAndRenderUsers();
 });
 
 /**
+ * Live Realtime Cloud Listener across Supabase, Firestore, and LocalStorage
+ */
+function initAdminRealtimeSync() {
+  let isSubscribed = false;
+
+  const subscribeSupabase = () => {
+    if (isSubscribed) return;
+    if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+      try {
+        isSubscribed = true;
+        window.supabaseClient
+          .channel('saldoku_admin_realtime_users')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, async (payload) => {
+            console.log('[Admin Realtime] Deteksi perubahan data pengguna di Supabase:', payload);
+            await loadAndRenderUsers(true);
+          })
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tabungan' }, async () => {
+            await loadAndRenderUsers(true);
+          })
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'debt_entries' }, async () => {
+            await loadAndRenderUsers(true);
+          })
+          .subscribe((status) => {
+            console.log('[Admin Realtime] Status channel Supabase:', status);
+          });
+      } catch (err) {
+        console.warn('[Admin Realtime] Supabase subscription warning:', err);
+      }
+    }
+  };
+
+  // Immediate attempt
+  subscribeSupabase();
+
+  // Retry attempt in case Supabase SDK was loading
+  let retryCount = 0;
+  const retryTimer = setInterval(() => {
+    retryCount++;
+    if (isSubscribed || retryCount > 25) {
+      clearInterval(retryTimer);
+    } else {
+      subscribeSupabase();
+    }
+  }, 200);
+
+  // 2. Firebase Firestore Realtime Listener
+  if (window.firebaseDb && typeof window.isFirebaseConnected === 'function' && window.isFirebaseConnected()) {
+    try {
+      window.firebaseDb.collection('users').onSnapshot(() => {
+        loadAndRenderUsers(true);
+      }, () => {});
+    } catch (e) {}
+  }
+
+  // 3. Browser Storage Cross-Tab Sync
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'saldoku_registered_accounts' || e.key === 'saldoku_feature_flags_registry') {
+      loadAndRenderUsers(true);
+    }
+  });
+
+  // 4. Autonomous Fast Heartbeat Poller (Every 4 seconds for 100% guarantee across devices)
+  setInterval(() => {
+    loadAndRenderUsers(true);
+  }, 4000);
+}
+
+/**
  * Loads all users and renders the table and metrics
  */
-async function loadAndRenderUsers() {
+async function loadAndRenderUsers(isSilent = false) {
   const tbody = document.getElementById('tbody-users-list');
   if (!tbody) return;
 
@@ -58,14 +129,16 @@ async function loadAndRenderUsers() {
     renderUsersTable(allUsers);
   } catch (err) {
     console.error('[Admin] Error loading users:', err);
-    showToast('Gagal memuat daftar pengguna.', 'error');
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="5" class="py-8 text-center text-rose-400">
-          Gagal memuat data pengguna. Silakan segarkan halaman.
-        </td>
-      </tr>
-    `;
+    if (!isSilent) {
+      showToast('Gagal memuat daftar pengguna.', 'error');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="py-8 text-center text-rose-400">
+            Gagal memuat data pengguna. Silakan segarkan halaman.
+          </td>
+        </tr>
+      `;
+    }
   }
 }
 
