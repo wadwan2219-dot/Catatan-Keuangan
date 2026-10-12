@@ -6,9 +6,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
 
-  // Guard: Fitur Hutang hanya untuk Akun Bersama (Login Email)
-  if (!isJointAccount()) {
-    showToast('Fitur Hutang Bersih hanya tersedia untuk Akun Bersama (Iwan & Wadda). Mengalihkan...', 'warning');
+  // Guard: Fitur Hutang hanya untuk Akun Bersama dan jika fitur debt_ledger diaktifkan
+  if (!isJointAccount() || !isFeatureEnabled('debt_ledger', user)) {
+    showToast('Fitur Hutang Bersih dinonaktifkan untuk akun Anda. Mengalihkan...', 'warning');
     setTimeout(() => {
       window.location.href = 'dashboard.html';
     }, 1000);

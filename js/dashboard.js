@@ -12,6 +12,19 @@ let activeCategoryFilter = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   let user = getCurrentUser();
+
+  // Guard: Suspended Account Check
+  if (user && user.status === 'suspended') {
+    logoutUser();
+    return;
+  }
+
+  // Guard: Super Admin Redirect
+  if (user && (user.role === 'admin' || user.role === 'superadmin')) {
+    window.location.href = 'admin.html';
+    return;
+  }
+
   if (!user || !user.isJoint) {
     user = {
       uid: 'bersama',
@@ -31,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (userNameElem) userNameElem.textContent = user.nama || 'Iwan & Wadda (Akun Bersama)';
   if (userEmailElem) userEmailElem.textContent = user.email || 'bersama@saldoku.id';
+
+  // Apply Modular Feature Flags for this user
+  applyDashboardFeatureFlags(user);
 
   // Logout Handler
   const logoutBtn = document.getElementById('btn-logout');
@@ -53,13 +69,49 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardMetrics(user.uid);
   });
 
-  // Subscribe to Real-Time Net Debt Ledger (Hutang Bersih)
-  if (window.DebtService && window.DebtEngine) {
+  // Subscribe to Real-Time Net Debt Ledger (Hutang Bersih) if feature enabled
+  if (window.DebtService && window.DebtEngine && isFeatureEnabled('debt_ledger', user)) {
     window.DebtService.subscribeEntries((debtEntries) => {
       updateDashboardDebtSummary(debtEntries);
     });
   }
 });
+
+/**
+ * Applies modular feature visibility based on admin settings
+ */
+function applyDashboardFeatureFlags(user) {
+  if (!user) user = getCurrentUser();
+  if (!user) return;
+
+  const isDebtEnabled = isFeatureEnabled('debt_ledger', user);
+  const isSplitEnabled = isFeatureEnabled('cash_bank_split', user);
+
+  // 1. Debt feature widget
+  const debtWidgets = document.querySelectorAll('[data-debt-feature="true"]');
+  debtWidgets.forEach(w => {
+    if (isDebtEnabled) {
+      w.classList.remove('hidden');
+    } else {
+      w.classList.add('hidden');
+    }
+  });
+
+  // 2. Hide navigation links to hutang.html if debt is disabled
+  if (!isDebtEnabled) {
+    document.querySelectorAll('a[href="hutang.html"]').forEach(el => {
+      el.style.display = 'none';
+    });
+  }
+
+  // 3. Sub-breakdown Rekening vs Tunai
+  if (!isSplitEnabled) {
+    document.querySelectorAll('[id^="sub-"]').forEach(el => {
+      const container = el.closest('.border-t');
+      if (container) container.classList.add('hidden');
+    });
+  }
+}
 
 /**
  * Update Ringkasan Hutang Bersih (Iwan ⇄ Wadda)

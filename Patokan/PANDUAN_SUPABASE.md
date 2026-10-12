@@ -77,4 +77,9 @@ create policy "Allow all on debt_entries" on public.debt_entries for all using (
 
 -- 6. AKTIFKAN REALTIME SINKRONISASI
 alter publication supabase_realtime add table public.tabungan, public.belanja, public.debt_entries;
+
+-- 7. (OPSIONAL) KOLOM STATUS & FITUR PENGGUNA UNTUK SUPER ADMIN
+alter table public.users add column if not exists status text default 'active';
+alter table public.users add column if not exists features jsonb default '{"debt_ledger":true,"dual_pocket":true,"cash_bank_split":true,"export_reports":true}'::jsonb;
+alter table public.users add column if not exists workspace_id text;
 ```

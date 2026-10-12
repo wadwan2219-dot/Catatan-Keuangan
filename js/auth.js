@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // If user is already logged in, redirect to their respective dashboard
   const currentUser = getCurrentUser();
   if (currentUser && (window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/'))) {
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      window.location.href = 'admin.html';
+      return;
+    }
     if (currentUser.memberId === 'iwan') {
       window.location.href = 'dashboard-iwan.html';
       return;
@@ -138,14 +142,33 @@ document.addEventListener('DOMContentLoaded', () => {
         email: email,
         nama: nama,
         passwordHash: btoa(password),
-        role: 'partner',
+        role: 'user',
+        status: 'active',
         isJoint: true,
         groupId: workspaceId,
         memberId: 'bersama',
+        features: {
+          debt_ledger: true,
+          dual_pocket: true,
+          cash_bank_split: true,
+          export_reports: true
+        },
         createdAt: new Date().toISOString()
       };
       registeredUsers.push(newUser);
       localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
+
+      // Mirror to Supabase public.users if connected
+      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          window.supabaseClient.from('users').insert([{
+            id: newUser.uid,
+            nama: newUser.nama,
+            email: newUser.email,
+            role: 'user'
+          }]).then(() => {});
+        } catch (e) {}
+      }
 
       setCurrentUser(newUser);
       showToast('Pendaftaran akun berhasil.', 'success');
@@ -216,14 +239,30 @@ document.addEventListener('DOMContentLoaded', () => {
       // Local Registry Strict Fallback (Rejects unregistered / random accounts)
       let registeredUsers = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
       
-      // Default seed demo accounts for joint access
-      if (registeredUsers.length === 0 || !registeredUsers.some(u => u.email === 'wadwan2219@gmail.com')) {
-        registeredUsers = [
-          { uid: 'wadwan', memberId: 'bersama', email: 'wadwan2219@gmail.com', passwordHash: btoa('wadwan123'), nama: 'WADWAN2219 (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main' },
-          { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main' },
-          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_iwan' },
-          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_wadda' }
-        ];
+      // Ensure default accounts and Super Admin exist
+      if (!registeredUsers.some(u => u.email === 'admin@saldoku.id')) {
+        registeredUsers.unshift({
+          uid: 'admin_master',
+          memberId: 'admin',
+          email: 'admin@saldoku.id',
+          passwordHash: btoa('admin123'),
+          nama: 'Super Administrator',
+          role: 'admin',
+          status: 'active',
+          isJoint: false,
+          groupId: 'admin_workspace',
+          features: { debt_ledger: true, dual_pocket: true, cash_bank_split: true, export_reports: true }
+        });
+        localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
+      }
+
+      if (!registeredUsers.some(u => u.email === 'wadwan2219@gmail.com')) {
+        registeredUsers.push(
+          { uid: 'wadwan', memberId: 'bersama', email: 'wadwan2219@gmail.com', passwordHash: btoa('wadwan123'), nama: 'WADWAN2219 (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main', status: 'active' },
+          { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main', status: 'active' },
+          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_iwan', status: 'active' },
+          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_wadda', status: 'active' }
+        );
         localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
       }
 
@@ -236,13 +275,38 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Login through form is strictly the JOINT ACCOUNT (Akun Bersama with isolated workspace)
+      // Check Account Status (Suspended Guard)
+      if (foundUser.status === 'suspended') {
+        showToast('Akun Anda dinonaktifkan oleh Administrator.', 'error');
+        return;
+      }
+
+      // 1. Super Admin Authentication Route
+      if (foundUser.role === 'admin' || foundUser.role === 'superadmin' || foundUser.email === 'admin@saldoku.id') {
+        const adminUser = {
+          uid: foundUser.uid || 'admin_master',
+          email: foundUser.email,
+          nama: foundUser.nama || 'Super Administrator',
+          role: 'admin',
+          status: 'active',
+          isJoint: false,
+          groupId: 'admin_workspace'
+        };
+        setCurrentUser(adminUser);
+        showToast('Autentikasi Administrator Berhasil.', 'success');
+        setTimeout(() => { window.location.href = 'admin.html'; }, 600);
+        return;
+      }
+
+      // 2. Standard / Joint User Authentication Route
       const jointUser = {
         uid: foundUser.uid || 'bersama',
         email: foundUser.email,
         nama: foundUser.nama || 'Iwan & Wadda (Akun Bersama)',
         memberId: foundUser.memberId || 'bersama',
         role: foundUser.role || 'partner',
+        status: foundUser.status || 'active',
+        features: foundUser.features || null,
         isJoint: true,
         groupId: foundUser.groupId || (typeof getActiveWorkspaceId === 'function' ? getActiveWorkspaceId(foundUser) : 'fam_wadwan_main')
       };

@@ -90,6 +90,11 @@ function getActiveWorkspaceId(user) {
   if (!user) user = getCurrentUser();
   if (!user) return 'fam_wadwan_main';
 
+  // Super Admin Workspace
+  if (user.role === 'admin' || user.role === 'superadmin' || user.uid === 'admin_master') {
+    return 'admin_workspace';
+  }
+
   // Specific Personal Modes (Iwan & Wadda PIN Portals)
   if (user.memberId === 'iwan' || user.uid === 'iwan') return 'pribadi_iwan';
   if (user.memberId === 'wadda' || user.uid === 'wadda') return 'pribadi_wadda';
@@ -122,6 +127,13 @@ function getCurrentUser() {
   try {
     const user = JSON.parse(session);
     if (!user) return null;
+
+    // Super Admin Session Guard
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      user.isAdmin = true;
+      user.groupId = 'admin_workspace';
+      return user;
+    }
 
     const isExplicitPersonal = user.role === 'personal' || user.isPersonal === true || user.uid === 'iwan' || user.uid === 'wadda';
     if (!isExplicitPersonal) {
@@ -172,6 +184,15 @@ function requireAuth() {
   const user = getCurrentUser();
   if (!user) {
     window.location.href = 'index.html';
+    return null;
+  }
+  if (user.status === 'suspended') {
+    localStorage.removeItem('saldoku_user_session');
+    showToast('Akun Anda dinonaktifkan oleh Administrator.', 'error');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 500);
+    return null;
   }
   return user;
 }
@@ -357,8 +378,30 @@ function isJointAccount() {
   return true;
 }
 
+// --------------------------------------------------------------------------
+// Modular Feature Flag Inspector
+// --------------------------------------------------------------------------
+function isFeatureEnabled(featureName, user = null) {
+  if (!user) user = getCurrentUser();
+  if (!user) return true;
+  // Super Admin and Iwan & Wadda always have all features enabled
+  if (user.role === 'admin' || user.role === 'superadmin') return true;
+  if (user.memberId === 'iwan' || user.memberId === 'wadda' || user.uid === 'wadwan' || user.uid === 'bersama') {
+    return true;
+  }
+  if (window.AdminService && typeof window.AdminService.getAccountFeatures === 'function') {
+    const f = window.AdminService.getAccountFeatures(user);
+    if (f && typeof f[featureName] === 'boolean') return f[featureName];
+  }
+  if (user.features && typeof user.features[featureName] === 'boolean') {
+    return user.features[featureName];
+  }
+  return true;
+}
+
 function setupDebtVisibility() {
-  const hasDebtAccess = isJointAccount();
+  const user = getCurrentUser();
+  const hasDebtAccess = isJointAccount() && isFeatureEnabled('debt_ledger', user);
   if (!hasDebtAccess) {
     // Hide navigation links to hutang.html
     document.querySelectorAll('a[href="hutang.html"]').forEach(el => {
@@ -383,6 +426,7 @@ document.addEventListener('DOMContentLoaded', setupDebtVisibility);
 // Dynamic Dashboard URL Resolver
 function getDashboardUrl() {
   const user = getCurrentUser();
+  if (user && (user.role === 'admin' || user.role === 'superadmin')) return 'admin.html';
   if (user && user.memberId === 'iwan') return 'dashboard-iwan.html';
   if (user && user.memberId === 'wadda') return 'dashboard-wadda.html';
   return 'dashboard.html';
@@ -392,7 +436,7 @@ function syncDashboardNavigationLinks() {
   const user = getCurrentUser();
   if (!user) return;
   const dashUrl = getDashboardUrl();
-  if (user.memberId === 'iwan' || user.memberId === 'wadda') {
+  if (user.role === 'admin' || user.role === 'superadmin' || user.memberId === 'iwan' || user.memberId === 'wadda') {
     document.querySelectorAll('a[href="dashboard.html"]').forEach(el => {
       el.setAttribute('href', dashUrl);
     });
