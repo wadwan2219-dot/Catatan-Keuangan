@@ -83,6 +83,37 @@ function showToast(message, type = 'success') {
 }
 
 // --------------------------------------------------------------------------
+// Multi-Tenant Workspace & Household Partition Identifier
+// Strictly isolates data between Iwan & Wadda and newly registered users.
+// --------------------------------------------------------------------------
+function getActiveWorkspaceId(user) {
+  if (!user) user = getCurrentUser();
+  if (!user) return 'fam_wadwan_main';
+
+  // Specific Personal Modes (Iwan & Wadda PIN Portals)
+  if (user.memberId === 'iwan' || user.uid === 'iwan') return 'pribadi_iwan';
+  if (user.memberId === 'wadda' || user.uid === 'wadda') return 'pribadi_wadda';
+
+  // Iwan & Wadda Original Joint Account
+  const email = (user.email || '').toLowerCase().trim();
+  if (email === 'wadwan2219@gmail.com' || email === 'bersama@gmail.com' || user.uid === 'wadwan' || user.uid === 'bersama') {
+    return 'fam_wadwan_main';
+  }
+
+  // Any other registered user has their own unique custom groupId
+  if (user.groupId && user.groupId !== 'group_default') {
+    return user.groupId;
+  }
+
+  // Fallback for user with specific uid
+  if (user.uid && user.uid !== 'wadwan' && user.uid !== 'bersama') {
+    return 'fam_' + user.uid;
+  }
+
+  return 'fam_wadwan_main';
+}
+
+// --------------------------------------------------------------------------
 // 3. User Session Guard & Local Cache Cleanup
 // --------------------------------------------------------------------------
 function getCurrentUser() {
@@ -92,15 +123,14 @@ function getCurrentUser() {
     const user = JSON.parse(session);
     if (!user) return null;
 
-    // Auto-normalize session:
-    // Any user account with an email (or not explicitly marked as personal PIN mode)
-    // is the Joint Account (Akun Bersama) with full debt access and shared cash partition.
     const isExplicitPersonal = user.role === 'personal' || user.isPersonal === true || user.uid === 'iwan' || user.uid === 'wadda';
     if (!isExplicitPersonal) {
       user.isJoint = true;
-      user.groupId = user.groupId || 'group_default';
+      user.groupId = getActiveWorkspaceId(user);
       user.memberId = user.memberId || 'bersama';
       user.role = user.role || 'partner';
+    } else {
+      user.groupId = user.uid === 'iwan' ? 'pribadi_iwan' : 'pribadi_wadda';
     }
     return user;
   } catch (e) {
@@ -416,15 +446,22 @@ function getUserTabungan(userId) {
     return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === userId));
   }
 
-  // Jika akun bersama
-  if (isJointAccount()) {
-    return all.filter(item => !item.group_id || isItemMatchingGroup(item.group_id, 'group_default'));
+  const workspace = getActiveWorkspaceId(currentUser);
+
+  // If this is Iwan & Wadda's original Joint Account ('fam_wadwan_main')
+  // We maintain backwards compatibility with existing 'group_default' & legacy entries
+  if (workspace === 'fam_wadwan_main') {
+    return all.filter(item => 
+      isItemMatchingGroup(item.group_id, 'fam_wadwan_main') || 
+      isItemMatchingGroup(item.group_id, 'group_default') || 
+      (!item.group_id && (!item.user_id || item.user_id === 'bersama' || item.user_id === 'wadwan'))
+    );
   }
 
-  // Akun pribadi dari session aktif
-  const activeId = userId || (currentUser ? currentUser.uid : '');
-  const personalGroup = 'pribadi_' + activeId;
-  return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === activeId));
+  // Any other registered user: STRICT MULTI-TENANT ISOLATION!
+  // Only returns items belonging to this specific workspace.
+  // They will NEVER see Iwan & Wadda's data!
+  return all.filter(item => isItemMatchingGroup(item.group_id, workspace));
 }
 
 function getUserBelanja(userId) {
@@ -437,15 +474,20 @@ function getUserBelanja(userId) {
     return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === userId));
   }
 
-  // Jika akun bersama
-  if (isJointAccount()) {
-    return all.filter(item => !item.group_id || isItemMatchingGroup(item.group_id, 'group_default'));
+  const workspace = getActiveWorkspaceId(currentUser);
+
+  // If this is Iwan & Wadda's original Joint Account ('fam_wadwan_main')
+  // We maintain backwards compatibility with existing 'group_default' & legacy entries
+  if (workspace === 'fam_wadwan_main') {
+    return all.filter(item => 
+      isItemMatchingGroup(item.group_id, 'fam_wadwan_main') || 
+      isItemMatchingGroup(item.group_id, 'group_default') || 
+      (!item.group_id && (!item.user_id || item.user_id === 'bersama' || item.user_id === 'wadwan'))
+    );
   }
 
-  // Akun pribadi dari session aktif
-  const activeId = userId || (currentUser ? currentUser.uid : '');
-  const personalGroup = 'pribadi_' + activeId;
-  return all.filter(item => isItemMatchingGroup(item.group_id, personalGroup) || (!item.group_id && item.user_id === activeId));
+  // Any other registered user: STRICT MULTI-TENANT ISOLATION!
+  return all.filter(item => isItemMatchingGroup(item.group_id, workspace));
 }
 
 // Compute Balances dynamically from active database (Dual-Pocket + Dual-Wadah: Rekening vs Tunai)
@@ -554,15 +596,16 @@ function calculateUserBalance(userId) {
 
 // Add Tabungan / Pemasukan directly to Supabase / Firebase / Local with pocket & wadah selector
 async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kantong = 'tabungan', wadah = 'rekening') {
-  const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
-  const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+  const currentUser = getCurrentUser();
+  const isPersonal = userId === 'wadda' || userId === 'iwan' || (currentUser && !isJointAccount());
+  const baseGroupId = isPersonal ? ('pribadi_' + (userId || (currentUser ? currentUser.uid : 'iwan'))) : getActiveWorkspaceId(currentUser);
   const pocket = kantong === 'kas' ? 'kas' : 'tabungan';
   const wadahClean = wadah === 'tunai' ? 'tunai' : 'rekening';
   const fullGroupId = `${baseGroupId}:${pocket}:${wadahClean}`;
 
   const newItem = {
     id: 'tab_' + Date.now(),
-    user_id: userId,
+    user_id: userId || (currentUser ? currentUser.uid : 'bersama'),
     group_id: fullGroupId,
     jumlah: Number(jumlah),
     keterangan: keterangan || (pocket === 'kas' ? 'Pemasukan Kas Siap Pakai' : 'Tabungan Masuk'),
@@ -616,15 +659,16 @@ async function addTabunganTransaction(userId, jumlah, keterangan, tanggal, kanto
 
 // Add Belanja / Pengeluaran directly to Supabase / Firebase / Local with pocket & wadah source
 async function addBelanjaTransaction(userId, nama_item, jumlah, kategori, tanggal, sumber_dana = 'kas', wadah = 'rekening') {
-  const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
-  const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+  const currentUser = getCurrentUser();
+  const isPersonal = userId === 'wadda' || userId === 'iwan' || (currentUser && !isJointAccount());
+  const baseGroupId = isPersonal ? ('pribadi_' + (userId || (currentUser ? currentUser.uid : 'iwan'))) : getActiveWorkspaceId(currentUser);
   const pocketSource = sumber_dana === 'tabungan' ? 'tabungan' : 'kas';
   const wadahClean = wadah === 'tunai' ? 'tunai' : 'rekening';
   const fullGroupId = `${baseGroupId}:${pocketSource}:${wadahClean}`;
 
   const newItem = {
     id: 'bel_' + Date.now(),
-    user_id: userId,
+    user_id: userId || (currentUser ? currentUser.uid : 'bersama'),
     group_id: fullGroupId,
     nama_item: nama_item,
     jumlah: Number(jumlah),
@@ -784,9 +828,14 @@ async function updateTransactionItem(id, type, updatedData) {
     if (idx === -1) return null;
 
     const currentItem = list[idx];
-    const userId = currentItem.user_id || 'iwan';
-    const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
-    const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+    const currentUser = getCurrentUser();
+    const userId = currentItem.user_id || (currentUser ? currentUser.uid : 'bersama');
+    const isPersonal = userId === 'wadda' || userId === 'iwan' || (currentUser && !isJointAccount());
+    let baseGroupId = isPersonal ? ('pribadi_' + userId) : getActiveWorkspaceId(currentUser);
+    if (currentItem.group_id) {
+      const existingPrefix = currentItem.group_id.split(':')[0];
+      if (existingPrefix) baseGroupId = existingPrefix;
+    }
     const fullGroupId = `${baseGroupId}:${pocket}:${wadah}`;
     const keterangan = updatedData.title || updatedData.keterangan || currentItem.keterangan;
 
@@ -842,9 +891,14 @@ async function updateTransactionItem(id, type, updatedData) {
     if (idx === -1) return null;
 
     const currentItem = list[idx];
-    const userId = currentItem.user_id || 'iwan';
-    const isPersonal = userId === 'wadda' || userId === 'iwan' || !isJointAccount();
-    const baseGroupId = isPersonal ? ('pribadi_' + userId) : 'group_default';
+    const currentUser = getCurrentUser();
+    const userId = currentItem.user_id || (currentUser ? currentUser.uid : 'bersama');
+    const isPersonal = userId === 'wadda' || userId === 'iwan' || (currentUser && !isJointAccount());
+    let baseGroupId = isPersonal ? ('pribadi_' + userId) : getActiveWorkspaceId(currentUser);
+    if (currentItem.group_id) {
+      const existingPrefix = currentItem.group_id.split(':')[0];
+      if (existingPrefix) baseGroupId = existingPrefix;
+    }
     const fullGroupId = `${baseGroupId}:${pocket}:${wadah}`;
     const namaItem = updatedData.title || updatedData.nama_item || currentItem.nama_item;
     const kategori = updatedData.kategori || currentItem.kategori || 'Umum';

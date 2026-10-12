@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
       email: 'bersama@saldoku.id',
       role: 'partner',
       isJoint: true,
-      groupId: 'group_default'
+      groupId: 'fam_wadwan_main'
     };
     setCurrentUser(user);
   }

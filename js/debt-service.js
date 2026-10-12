@@ -8,10 +8,34 @@
   'use strict';
 
   const STORAGE_KEY_DEBT = 'saldoku_debt_entries';
-  const DEFAULT_GROUP_ID = 'group_default';
+  const DEFAULT_GROUP_ID = 'fam_wadwan_main';
 
   let activeUnsubscribe = null;
   let isSubmitting = false;
+
+  /**
+   * Identifies the active workspace partition for the current user session.
+   */
+  function getActiveGroupId() {
+    const user = typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null;
+    if (typeof window.getActiveWorkspaceId === 'function') {
+      return window.getActiveWorkspaceId(user);
+    }
+    return user && user.groupId ? user.groupId : DEFAULT_GROUP_ID;
+  }
+
+  /**
+   * Checks whether a debt entry belongs to the specified workspace partition.
+   * Backward compatibility: fam_wadwan_main also matches legacy 'group_default' or empty group_id.
+   */
+  function isDebtEntryMatchingWorkspace(item, workspace) {
+    if (!item) return false;
+    const itemGroup = item.group_id || item.groupId;
+    if (workspace === 'fam_wadwan_main') {
+      return itemGroup === 'fam_wadwan_main' || itemGroup === 'group_default' || !itemGroup;
+    }
+    return itemGroup === workspace;
+  }
 
   /**
    * Generates a unique client request ID for idempotency and anti-duplicate submits.
@@ -21,9 +45,9 @@
   }
 
   /**
-   * Reads raw debt entries from LocalStorage.
+   * Reads raw unfiltered debt entries from LocalStorage.
    */
-  function getLocalEntries() {
+  function getAllRawLocalEntries() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_DEBT);
       if (!raw) return [];
@@ -36,13 +60,26 @@
   }
 
   /**
-   * Saves debt entries to LocalStorage.
+   * Reads debt entries filtered strictly for the current workspace.
    */
-  function saveLocalEntries(list) {
+  function getLocalEntries() {
+    const list = getAllRawLocalEntries();
+    const currentWorkspace = getActiveGroupId();
+    return list.filter(e => isDebtEntryMatchingWorkspace(e, currentWorkspace));
+  }
+
+  /**
+   * Saves debt entries to LocalStorage preserving other workspaces' entries.
+   */
+  function saveLocalEntries(updatedWorkspaceList) {
     try {
-      localStorage.setItem(STORAGE_KEY_DEBT, JSON.stringify(list));
+      const currentWorkspace = getActiveGroupId();
+      const allEntries = getAllRawLocalEntries();
+      const otherEntries = allEntries.filter(e => !isDebtEntryMatchingWorkspace(e, currentWorkspace));
+      const combined = [...updatedWorkspaceList, ...otherEntries];
+      localStorage.setItem(STORAGE_KEY_DEBT, JSON.stringify(combined));
       // Dispatch custom event for cross-component reactive updates
-      window.dispatchEvent(new CustomEvent('saldoku_debt_updated', { detail: list }));
+      window.dispatchEvent(new CustomEvent('saldoku_debt_updated', { detail: updatedWorkspaceList }));
     } catch (e) {
       console.warn('Failed to save local debt entries:', e);
     }
@@ -79,14 +116,18 @@
     const initialList = sortEntries(getLocalEntries());
     callback(initialList);
 
+    const activeWorkspace = getActiveGroupId();
+
     // 1. If Supabase is connected, subscribe to Supabase Realtime
     if (window.isSupabaseConnected && window.isSupabaseConnected()) {
       try {
         // Initial fetch from Supabase
         window.supabaseClient.from('debt_entries').select('*').then(({ data, error }) => {
           if (data && !error) {
-            const mapped = data.map(d => ({
+            const filtered = data.filter(d => isDebtEntryMatchingWorkspace(d, activeWorkspace));
+            const mapped = filtered.map(d => ({
               id: d.id,
+              group_id: d.group_id,
               kind: d.kind,
               fromMemberId: d.from_member_id,
               toMemberId: d.to_member_id,
@@ -112,8 +153,10 @@
           .on('postgres_changes', { event: '*', schema: 'public', table: 'debt_entries' }, async () => {
             const { data } = await window.supabaseClient.from('debt_entries').select('*');
             if (data) {
-              const mapped = data.map(d => ({
+              const filtered = data.filter(d => isDebtEntryMatchingWorkspace(d, activeWorkspace));
+              const mapped = filtered.map(d => ({
                 id: d.id,
+                group_id: d.group_id,
                 kind: d.kind,
                 fromMemberId: d.from_member_id,
                 toMemberId: d.to_member_id,
@@ -147,7 +190,7 @@
       try {
         const debtCol = window.firebaseDb
           .collection('groups')
-          .doc(DEFAULT_GROUP_ID)
+          .doc(activeWorkspace)
           .collection('debtEntries');
 
         // Simple query without composite ordering -> Zero-Config, no index needed!
@@ -156,7 +199,7 @@
             const cloudEntries = [];
             snapshot.forEach((doc) => {
               const data = doc.data();
-              cloudEntries.push({ id: doc.id, ...data });
+              cloudEntries.push({ id: doc.id, group_id: activeWorkspace, ...data });
             });
 
             const sorted = sortEntries(cloudEntries);
@@ -218,9 +261,12 @@
       }
 
       const currentUser = typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null;
+      const activeWorkspace = getActiveGroupId();
 
       const newEntry = {
         ...payload,
+        groupId: activeWorkspace,
+        group_id: activeWorkspace,
         createdAt: new Date().toISOString(),
         createdByUid: currentUser ? (currentUser.uid || 'anon') : 'anon',
         createdByName: currentUser ? (currentUser.nama || currentUser.email || 'Pengguna') : 'Pengguna',
@@ -232,7 +278,7 @@
         try {
           const dbRow = {
             id: newEntry.id || ('debt_' + Date.now()),
-            group_id: DEFAULT_GROUP_ID,
+            group_id: activeWorkspace,
             kind: newEntry.kind,
             from_member_id: newEntry.fromMemberId,
             to_member_id: newEntry.toMemberId,
@@ -257,7 +303,7 @@
           }
           const docRef = await window.firebaseDb
             .collection('groups')
-            .doc(DEFAULT_GROUP_ID)
+            .doc(activeWorkspace)
             .collection('debtEntries')
             .add(docData);
           newEntry.id = docRef.id;
@@ -308,9 +354,12 @@
       }
 
       const currentUser = typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null;
+      const activeWorkspace = getActiveGroupId();
 
       const newEntry = {
         ...payload,
+        groupId: activeWorkspace,
+        group_id: activeWorkspace,
         createdAt: new Date().toISOString(),
         createdByUid: currentUser ? (currentUser.uid || 'anon') : 'anon',
         createdByName: currentUser ? (currentUser.nama || currentUser.email || 'Pengguna') : 'Pengguna',
@@ -322,7 +371,7 @@
         try {
           const dbRow = {
             id: newEntry.id || ('pay_' + Date.now()),
-            group_id: DEFAULT_GROUP_ID,
+            group_id: activeWorkspace,
             kind: newEntry.kind,
             from_member_id: newEntry.fromMemberId,
             to_member_id: newEntry.toMemberId,
@@ -347,7 +396,7 @@
           }
           const docRef = await window.firebaseDb
             .collection('groups')
-            .doc(DEFAULT_GROUP_ID)
+            .doc(activeWorkspace)
             .collection('debtEntries')
             .add(docData);
           newEntry.id = docRef.id;
@@ -397,10 +446,13 @@
     try {
       const originalDelta = window.DebtEngine.toSignedDelta(originalEntry);
       const currentUser = typeof window.getCurrentUser === 'function' ? window.getCurrentUser() : null;
+      const activeWorkspace = getActiveGroupId();
 
       const reversalPayload = {
         schemaVersion: 1,
         kind: 'reversal',
+        groupId: activeWorkspace,
+        group_id: activeWorkspace,
         reversesEntryId: originalEntry.id,
         originalDelta: originalDelta,
         amount: originalEntry.amount,
@@ -417,7 +469,7 @@
         try {
           const dbRow = {
             id: reversalPayload.id || ('rev_' + Date.now()),
-            group_id: DEFAULT_GROUP_ID,
+            group_id: activeWorkspace,
             kind: reversalPayload.kind,
             from_member_id: originalEntry.fromMemberId || 'iwan',
             to_member_id: originalEntry.toMemberId || 'wadda',
@@ -444,7 +496,7 @@
           }
           const docRef = await window.firebaseDb
             .collection('groups')
-            .doc(DEFAULT_GROUP_ID)
+            .doc(activeWorkspace)
             .collection('debtEntries')
             .add(docData);
           reversalPayload.id = docRef.id;

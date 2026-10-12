@@ -93,13 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
           const userCred = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
           const fbUser = userCred.user;
 
+          const workspaceId = 'fam_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
           const userData = {
             uid: fbUser.uid,
             email: email,
             nama: nama,
             role: 'partner',
             isJoint: true,
-            groupId: 'group_default',
+            groupId: workspaceId,
             memberId: 'bersama',
             createdAt: new Date().toISOString()
           };
@@ -131,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const workspaceId = 'fam_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
       const newUser = {
         uid: 'user_' + Date.now(),
         email: email,
@@ -138,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         passwordHash: btoa(password),
         role: 'partner',
         isJoint: true,
-        groupId: 'group_default',
+        groupId: workspaceId,
         memberId: 'bersama',
         createdAt: new Date().toISOString()
       };
@@ -177,18 +179,24 @@ document.addEventListener('DOMContentLoaded', () => {
             nama: fbUser.displayName || fbUser.email.split('@')[0].toUpperCase(),
             role: 'partner',
             isJoint: true,
-            groupId: 'group_default',
+            groupId: 'fam_wadwan_main',
             memberId: 'bersama'
           };
 
-          // Fetch name from Firestore users collection
+          // Fetch name and workspace groupId from Firestore users collection
           if (window.firebaseDb) {
             try {
               const doc = await window.firebaseDb.collection('users').doc(fbUser.uid).get();
-              if (doc.exists && doc.data().nama) {
-                userObj.nama = doc.data().nama;
+              if (doc.exists) {
+                const data = doc.data();
+                if (data.nama) userObj.nama = data.nama;
+                if (data.groupId) userObj.groupId = data.groupId;
               }
             } catch (e) {}
+          }
+
+          if (typeof getActiveWorkspaceId === 'function') {
+            userObj.groupId = getActiveWorkspaceId(userObj);
           }
 
           setCurrentUser(userObj);
@@ -211,10 +219,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Default seed demo accounts for joint access
       if (registeredUsers.length === 0 || !registeredUsers.some(u => u.email === 'wadwan2219@gmail.com')) {
         registeredUsers = [
-          { uid: 'wadwan', memberId: 'bersama', email: 'wadwan2219@gmail.com', passwordHash: btoa('wadwan123'), nama: 'WADWAN2219 (Akun Bersama)', role: 'partner', isJoint: true },
-          { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
-          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true },
-          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true }
+          { uid: 'wadwan', memberId: 'bersama', email: 'wadwan2219@gmail.com', passwordHash: btoa('wadwan123'), nama: 'WADWAN2219 (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main' },
+          { uid: 'bersama', memberId: 'bersama', email: 'bersama@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'fam_wadwan_main' },
+          { uid: 'iwan', memberId: 'iwan', email: 'iwan@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_iwan' },
+          { uid: 'wadda', memberId: 'wadda', email: 'wadda@gmail.com', passwordHash: btoa('123456'), nama: 'Iwan & Wadda (Akun Bersama)', role: 'partner', isJoint: true, groupId: 'pribadi_wadda' }
         ];
         localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
       }
@@ -228,15 +236,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Login through form is strictly the JOINT ACCOUNT (Akun Bersama Iwan & Wadda with Debt Feature)
+      // Login through form is strictly the JOINT ACCOUNT (Akun Bersama with isolated workspace)
       const jointUser = {
         uid: foundUser.uid || 'bersama',
         email: foundUser.email,
         nama: foundUser.nama || 'Iwan & Wadda (Akun Bersama)',
-        memberId: 'bersama',
-        role: 'partner',
+        memberId: foundUser.memberId || 'bersama',
+        role: foundUser.role || 'partner',
         isJoint: true,
-        groupId: 'group_default'
+        groupId: foundUser.groupId || (typeof getActiveWorkspaceId === 'function' ? getActiveWorkspaceId(foundUser) : 'fam_wadwan_main')
       };
 
       setCurrentUser(jointUser);
