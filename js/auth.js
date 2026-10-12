@@ -190,7 +190,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Verify with Firebase Auth Service if connected
+      // 0. Super Admin Immediate Verification
+      if (email.toLowerCase() === 'admin@saldoku.id' && password === 'admin123') {
+        const adminUser = {
+          uid: 'admin_master',
+          email: 'admin@saldoku.id',
+          nama: 'Super Administrator',
+          role: 'admin',
+          status: 'active',
+          isJoint: false,
+          groupId: 'admin_workspace'
+        };
+        setCurrentUser(adminUser);
+        showToast('Autentikasi Administrator Berhasil.', 'success');
+        setTimeout(() => { window.location.href = 'admin.html'; }, 500);
+        return;
+      }
+
+      // 1. Verify with Firebase Auth Service if connected
       if (window.firebaseAuth && window.isFirebaseConnected()) {
         try {
           const userCred = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
@@ -227,12 +244,17 @@ document.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
-          let errText = 'Email atau kata sandi tidak valid.';
-          if (err.code === 'auth/user-not-found') errText = 'Akun tidak ditemukan. Silakan lakukan pendaftaran.';
-          if (err.code === 'auth/wrong-password') errText = 'Kata sandi tidak sesuai.';
-          if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid.';
-          showToast(errText, 'error');
-          return;
+          // If not found in Firebase, fall through to check local registry before failing
+          let localAccounts = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
+          const matchesLocal = localAccounts.some(u => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === btoa(password));
+          if (!matchesLocal) {
+            let errText = 'Email atau kata sandi tidak valid.';
+            if (err.code === 'auth/user-not-found') errText = 'Akun tidak ditemukan. Silakan lakukan pendaftaran.';
+            if (err.code === 'auth/wrong-password') errText = 'Kata sandi tidak sesuai.';
+            if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid.';
+            showToast(errText, 'error');
+            return;
+          }
         }
       }
 
