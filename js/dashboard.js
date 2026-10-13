@@ -255,6 +255,16 @@ function applyDashboardFeatureFlags(user) {
     }
   }
 }
+window.applyDashboardFeatureFlags = applyDashboardFeatureFlags;
+
+// Dynamic listener for realtime feature changes by Super Admin
+window.addEventListener('saldoku_features_updated', (e) => {
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    currentUser.features = e.detail;
+    applyDashboardFeatureFlags(currentUser);
+  }
+});
 
 /**
  * Update Ringkasan Hutang Bersih (Iwan ⇄ Wadda)

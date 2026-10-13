@@ -437,10 +437,19 @@ document.addEventListener('DOMContentLoaded', () => {
           };
 
           // 1. Fetch from Supabase public.users (Cloud Single Source of Truth)
+          let sbRow = null;
+          let sbChecked = false;
           if (window.isSupabaseConnected && window.isSupabaseConnected()) {
             try {
-              const { data: sbRow } = await window.supabaseClient.from('users').select('*').eq('id', fbUser.uid).single();
-              if (sbRow) {
+              const { data, error } = await window.supabaseClient
+                .from('users')
+                .select('*')
+                .or(`id.eq.${fbUser.uid},email.eq.${fbUser.email.toLowerCase().trim()}`)
+                .maybeSingle();
+
+              if (data) {
+                sbRow = data;
+                sbChecked = true;
                 if (sbRow.nama) userObj.nama = sbRow.nama;
                 if (sbRow.role) userObj.role = sbRow.role;
                 if (sbRow.workspace_id) userObj.groupId = sbRow.workspace_id;
@@ -450,8 +459,29 @@ document.addEventListener('DOMContentLoaded', () => {
                   if (sbRow.features.invite_code) userObj.inviteCode = sbRow.features.invite_code;
                   if (typeof sbRow.features.is_onboarded === 'boolean') userObj.isOnboarded = sbRow.features.is_onboarded;
                 }
+              } else if (!error) {
+                sbChecked = true;
               }
             } catch (sbLookupErr) {}
+          }
+
+          // Strict Cloud Gatekeeper:
+          // Check if non-master account is suspended or was deleted from cloud
+          if (!isMasterPartner && userObj.role !== 'admin') {
+            if (sbRow && sbRow.status === 'suspended') {
+              showToast('Akun Anda dinonaktifkan oleh Administrator.', 'error');
+              if (window.firebaseAuth) {
+                try { await window.firebaseAuth.signOut(); } catch (e) {}
+              }
+              return;
+            }
+            if (sbChecked && !sbRow) {
+              showToast('Akun tidak terdaftar atau telah dihapus oleh Administrator.', 'error');
+              if (window.firebaseAuth) {
+                try { await window.firebaseAuth.signOut(); } catch (e) {}
+              }
+              return;
+            }
           }
 
           // 2. Fetch name and workspace groupId from Firestore users collection if available
@@ -541,6 +571,27 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!foundUser) {
         showToast('Kredensial tidak valid. Silakan periksa email dan kata sandi.', 'error');
         return;
+      }
+
+      // Check Live Cloud Status for Local Fallback User
+      const isMasterFallback = foundUser.email === 'admin@saldoku.id' || foundUser.email === 'wadwan2219@gmail.com' || foundUser.email === 'bersama@gmail.com';
+      if (!isMasterFallback && window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          const { data: cloudUser, error } = await window.supabaseClient
+            .from('users')
+            .select('status, features')
+            .or(`id.eq.${foundUser.uid},email.eq.${foundUser.email.toLowerCase().trim()}`)
+            .maybeSingle();
+
+          if (cloudUser) {
+            foundUser.status = cloudUser.status;
+            if (cloudUser.features) foundUser.features = cloudUser.features;
+          } else if (!error) {
+            // Account was deleted from cloud by Admin
+            showToast('Akun tidak terdaftar atau telah dihapus oleh Administrator.', 'error');
+            return;
+          }
+        } catch (e) {}
       }
 
       // Check Account Status (Suspended Guard)

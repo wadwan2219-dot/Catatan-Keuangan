@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -140,7 +140,7 @@
           <span>Catat Pengeluaran</span>
         </button>
 
-        <!-- Button: ⇄ Pindah Dana -->
+        <!-- Button: â‡„ Pindah Dana -->
         <button id="btn-open-modal-transfer" type="button" 
                 class="px-3.5 py-2.5 rounded-xl bg-[#0e172e] hover:bg-[#142244] border border-blue-500/30 text-blue-300 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer transform active:scale-95">
           <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -179,7 +179,7 @@
               <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 flex-shrink-0"></span>
               Bank: <span id="sub-kas-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
             </span>
-            <span class="text-slate-700">•</span>
+            <span class="text-slate-700">â€¢</span>
             <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
               Tunai: <span id="sub-kas-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
@@ -213,7 +213,7 @@
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
               Bank: <span id="sub-tabungan-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
             </span>
-            <span class="text-slate-700">•</span>
+            <span class="text-slate-700">â€¢</span>
             <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
               <span class="w-1.5 h-1.5 rounded-full bg-teal-400 flex-shrink-0"></span>
               Tunai: <span id="sub-tabungan-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
@@ -246,7 +246,7 @@
               <span class="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"></span>
               Bank: <span id="sub-total-rekening" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
             </span>
-            <span class="text-slate-700">•</span>
+            <span class="text-slate-700">â€¢</span>
             <span class="inline-flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
               Tunai: <span id="sub-total-tunai" class="text-slate-200 font-semibold whitespace-nowrap">Rp 0</span>
@@ -271,7 +271,7 @@
             Rp 0
           </h2>
           <p class="text-[11px] text-slate-400 mt-2" id="val-pengeluaran-detail">
-            Kas: Rp 0 • Tabungan: Rp 0
+            Kas: Rp 0 â€¢ Tabungan: Rp 0
           </p>
         </div>
       </div>
@@ -312,7 +312,7 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Posisi Hutang Bersih (Iwan ⇄ Wadda)</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Posisi Hutang Bersih (Iwan â‡„ Wadda)</span>
             <span id="badge-dashboard-debt" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-800 text-slate-400 border border-slate-700">
               Memuat...
             </span>
@@ -325,7 +325,7 @@
       <div class="flex items-center gap-2 sm:self-center">
         <a href="hutang.html" class="px-4 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-xs font-semibold text-indigo-300 hover:text-white transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
           <span>Kelola Hutang</span>
-          <span>→</span>
+          <span>â†’</span>
         </a>
       </div>
     </div>
@@ -719,7 +719,7 @@
             <div class="flex items-center gap-3">
               <input type="radio" name="arah-transfer" value="kas_to_tabungan" checked class="text-blue-500 focus:ring-0">
               <div>
-                <span class="text-xs font-bold text-white block">Kas Siap Pakai ➔ Tabungan Bersama</span>
+                <span class="text-xs font-bold text-white block">Kas Siap Pakai âž” Tabungan Bersama</span>
                 <span class="text-[10px] text-slate-400">Sisihkan sisa kas ke tabungan aman</span>
               </div>
             </div>
@@ -730,7 +730,7 @@
             <div class="flex items-center gap-3">
               <input type="radio" name="arah-transfer" value="tabungan_to_kas" class="text-blue-500 focus:ring-0">
               <div>
-                <span class="text-xs font-bold text-white block">Tabungan Bersama ➔ Kas Siap Pakai</span>
+                <span class="text-xs font-bold text-white block">Tabungan Bersama âž” Kas Siap Pakai</span>
                 <span class="text-[10px] text-slate-400">Cairkan tabungan untuk kebutuhan operasional</span>
               </div>
             </div>
@@ -741,7 +741,7 @@
             <div class="flex items-center gap-3">
               <input type="radio" name="arah-transfer" value="tarik_tunai" class="text-blue-500 focus:ring-0">
               <div>
-                <span class="text-xs font-bold text-white block">Tarik Tunai ATM (Bank ➔ Tunai Fisik)</span>
+                <span class="text-xs font-bold text-white block">Tarik Tunai ATM (Bank âž” Tunai Fisik)</span>
                 <span class="text-[10px] text-slate-400">Ambil uang dari rekening bank ke dompet</span>
               </div>
             </div>
@@ -752,7 +752,7 @@
             <div class="flex items-center gap-3">
               <input type="radio" name="arah-transfer" value="setor_tunai" class="text-blue-500 focus:ring-0">
               <div>
-                <span class="text-xs font-bold text-white block">Setor Tunai (Tunai Fisik ➔ Bank)</span>
+                <span class="text-xs font-bold text-white block">Setor Tunai (Tunai Fisik âž” Bank)</span>
                 <span class="text-[10px] text-slate-400">Setorkan uang cash ke rekening bank</span>
               </div>
             </div>
@@ -973,12 +973,12 @@
 
   <!-- JavaScript Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js?v=2.6.0"></script>
-  <script src="js/firebase-config.js?v=2.6.0"></script>
-  <script src="js/common.js?v=2.6.0"></script>
-  <script src="js/admin-service.js?v=2.6.0"></script>
-  <script src="js/debt-engine.js?v=2.6.0"></script>
-  <script src="js/debt-service.js?v=2.6.0"></script>
-  <script src="js/dashboard.js?v=2.6.0"></script>
+  <script src="js/supabase-config.js?v=2.6.1"></script>
+  <script src="js/firebase-config.js?v=2.6.1"></script>
+  <script src="js/common.js?v=2.6.1"></script>
+  <script src="js/admin-service.js?v=2.6.1"></script>
+  <script src="js/debt-engine.js?v=2.6.1"></script>
+  <script src="js/debt-service.js?v=2.6.1"></script>
+  <script src="js/dashboard.js?v=2.6.1"></script>
 </body>
 </html>

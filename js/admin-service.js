@@ -355,11 +355,13 @@
     } catch (e) {}
 
     // 2. Update in Supabase public.users if connected
+    const cleanId = String(uidOrEmail).trim();
+    const cleanEmail = cleanId.toLowerCase();
     if (window.isSupabaseConnected && window.isSupabaseConnected()) {
       try {
         await window.supabaseClient.from('users')
           .update({ status: statusClean })
-          .or(`id.eq.${uidOrEmail},email.eq.${uidOrEmail}`);
+          .or(`id.eq.${cleanId},email.eq.${cleanEmail}`);
       } catch (e) {}
     }
 
@@ -412,11 +414,13 @@
     } catch (e) {}
 
     // 2. Update Supabase if connected
+    const cleanId = String(uidOrEmail).trim();
+    const cleanEmail = cleanId.toLowerCase();
     if (window.isSupabaseConnected && window.isSupabaseConnected()) {
       try {
         await window.supabaseClient.from('users')
           .update({ features: flagsMap[uidOrEmail] })
-          .or(`id.eq.${uidOrEmail},email.eq.${uidOrEmail}`);
+          .or(`id.eq.${cleanId},email.eq.${cleanEmail}`);
       } catch (e) {}
     }
 
@@ -452,12 +456,15 @@
       throw new Error('Akun Super Administrator dan Akun Utama Iwan & Wadda tidak dapat dihapus.');
     }
 
+    const cleanId = String(uidOrEmail).trim();
+    const cleanEmail = cleanId.toLowerCase();
+
     // 1. Remove from LocalStorage accounts
     try {
       const raw = localStorage.getItem(STORAGE_KEY_REGISTRY);
       if (raw) {
         let localUsers = JSON.parse(raw);
-        localUsers = localUsers.filter(u => u.uid !== uidOrEmail && u.email.toLowerCase() !== uidOrEmail.toLowerCase());
+        localUsers = localUsers.filter(u => u.uid !== uidOrEmail && u.email.toLowerCase() !== cleanEmail);
         localStorage.setItem(STORAGE_KEY_REGISTRY, JSON.stringify(localUsers));
       }
     } catch (e) {}
@@ -495,7 +502,7 @@
     // 4. Delete from Supabase public.users and purge tables
     if (window.isSupabaseConnected && window.isSupabaseConnected()) {
       try {
-        await window.supabaseClient.from('users').delete().or(`id.eq.${uidOrEmail},email.eq.${uidOrEmail}`);
+        await window.supabaseClient.from('users').delete().or(`id.eq.${cleanId},email.eq.${cleanEmail}`);
         if (workspaceId && workspaceId !== 'fam_wadwan_main') {
           await window.supabaseClient.from('tabungan').delete().like('group_id', `${workspaceId}%`);
           await window.supabaseClient.from('belanja').delete().like('group_id', `${workspaceId}%`);

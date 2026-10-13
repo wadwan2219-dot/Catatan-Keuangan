@@ -176,6 +176,19 @@ async function syncUserToSupabaseCloud(userData) {
       features: userFeatures
     };
 
+    // Guard: Do not overwrite suspended status with active if already suspended in Supabase
+    try {
+      const { data: existingUser } = await window.supabaseClient
+        .from('users')
+        .select('status')
+        .or(`id.eq.${fullPayload.id},email.eq.${fullPayload.email}`)
+        .maybeSingle();
+
+      if (existingUser && existingUser.status === 'suspended') {
+        fullPayload.status = 'suspended';
+      }
+    } catch (checkErr) {}
+
     try {
       const { error } = await window.supabaseClient.from('users').upsert([fullPayload], { onConflict: 'id' });
       if (error) {
@@ -240,6 +253,112 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/**
+ * Realtime Remote Kill-Switch & Dynamic Feature Sync Guard
+ * Monitors user status directly in Supabase public.users.
+ * If Admin suspends or deletes the account, immediately purges session and redirects to index.html.
+ */
+let isSessionGuardInitialized = false;
+
+function initActiveSessionGuard(user) {
+  if (!user || user.role === 'admin' || user.role === 'superadmin' || isSessionGuardInitialized) return;
+  const isMaster = user.email === 'wadwan2219@gmail.com' || user.email === 'bersama@gmail.com' || user.uid === 'iwan' || user.uid === 'wadda';
+  if (isMaster) return;
+
+  isSessionGuardInitialized = true;
+
+  const terminateSession = (reasonMessage) => {
+    localStorage.removeItem('saldoku_user_session');
+    localStorage.removeItem('saldoku_data_tabungan');
+    localStorage.removeItem('saldoku_data_belanja');
+    localStorage.removeItem('saldoku_debt_entries');
+    if (window.firebaseAuth) {
+      try { window.firebaseAuth.signOut(); } catch (e) {}
+    }
+    showToast(reasonMessage || 'Sesi Anda telah dinonaktifkan oleh Administrator.', 'error');
+    setTimeout(() => {
+      window.location.href = 'index.html';
+    }, 1200);
+  };
+
+  const checkLiveStatus = async () => {
+    if (typeof window.supabaseClient === 'undefined' || !window.supabaseClient) return;
+    if (typeof window.isSupabaseConnected === 'function' && !window.isSupabaseConnected()) return;
+
+    try {
+      const emailClean = (user.email || '').toLowerCase().trim();
+      const { data: row, error } = await window.supabaseClient
+        .from('users')
+        .select('id, email, status, features')
+        .or(`id.eq.${user.uid},email.eq.${emailClean}`)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        return; // Temporary network glitch, avoid false ejection
+      }
+
+      // 1. Account purged / deleted by Admin
+      if (!row) {
+        terminateSession('Akun Anda telah dihapus oleh Administrator.');
+        return;
+      }
+
+      // 2. Account suspended / frozen by Admin
+      if (row.status === 'suspended') {
+        terminateSession('Akun Anda telah dinonaktifkan oleh Administrator.');
+        return;
+      }
+
+      // 3. Dynamic Feature Flag synchronization
+      if (row.features && JSON.stringify(row.features) !== JSON.stringify(user.features)) {
+        user.features = row.features;
+        localStorage.setItem('saldoku_user_session', JSON.stringify(user));
+        window.dispatchEvent(new CustomEvent('saldoku_features_updated', { detail: row.features }));
+        if (typeof window.applyDashboardFeatureFlags === 'function') {
+          window.applyDashboardFeatureFlags(user);
+        }
+      }
+    } catch (e) {}
+  };
+
+  // Immediate check
+  setTimeout(checkLiveStatus, 500);
+
+  // Background Heartbeat Poller (Every 5 seconds for absolute cross-device guarantee)
+  setInterval(checkLiveStatus, 5000);
+
+  // Supabase Realtime Channel for instantaneous sub-second kickout
+  const initRealtimeChannel = () => {
+    if (typeof window.supabaseClient === 'undefined' || !window.supabaseClient) return;
+    try {
+      window.supabaseClient
+        .channel(`guard_user_${user.uid}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.uid}`
+        }, (payload) => {
+          if (payload.eventType === 'DELETE') {
+            terminateSession('Akun Anda telah dihapus oleh Administrator.');
+          } else if (payload.new && payload.new.status === 'suspended') {
+            terminateSession('Akun Anda telah dinonaktifkan oleh Administrator.');
+          } else if (payload.new && payload.new.features) {
+            user.features = payload.new.features;
+            localStorage.setItem('saldoku_user_session', JSON.stringify(user));
+            window.dispatchEvent(new CustomEvent('saldoku_features_updated', { detail: payload.new.features }));
+            if (typeof window.applyDashboardFeatureFlags === 'function') {
+              window.applyDashboardFeatureFlags(user);
+            }
+          }
+        })
+        .subscribe();
+    } catch (rtErr) {}
+  };
+
+  setTimeout(initRealtimeChannel, 800);
+}
+
 function requireAuth() {
   const user = getCurrentUser();
   if (!user) {
@@ -254,6 +373,10 @@ function requireAuth() {
     }, 500);
     return null;
   }
+
+  // Activate Realtime Remote Kill-Switch on all authenticated pages
+  initActiveSessionGuard(user);
+
   return user;
 }
 
