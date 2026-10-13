@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply Modular Feature Flags for this user
   applyDashboardFeatureFlags(user);
 
+  // Setup Invite Code Header & Partner Sharing
+  setupInviteCodeHeader(user);
+
+  // Setup Onboarding Initial Balance Wizard
+  checkOnboardingWizard(user);
+
   // Logout Handler
   const logoutBtn = document.getElementById('btn-logout');
   if (logoutBtn) {
@@ -76,6 +82,121 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
+ * Setup Invite Code Header Pill & Clipboard Copy
+ */
+function setupInviteCodeHeader(user) {
+  const btnCopyInvite = document.getElementById('btn-copy-invite-code');
+  const displayInvite = document.getElementById('display-invite-code');
+  if (!btnCopyInvite || !displayInvite) return;
+
+  const isMaster = user.email === 'wadwan2219@gmail.com' || user.email === 'bersama@gmail.com';
+  const inviteCode = user.inviteCode || user.features?.invite_code || (isMaster ? 'SLD-MAIN' : null);
+
+  if (inviteCode && user.role !== 'admin') {
+    displayInvite.textContent = inviteCode;
+    btnCopyInvite.classList.remove('hidden');
+    btnCopyInvite.classList.add('inline-flex');
+
+    btnCopyInvite.onclick = (e) => {
+      e.preventDefault();
+      navigator.clipboard.writeText(inviteCode).then(() => {
+        showToast(`Kode Pasangan [${inviteCode}] disalin! Bagikan ke pasangan Anda untuk mengelola kas bersama.`, 'success');
+      }).catch(() => {
+        showToast(`Kode Pasangan Anda: ${inviteCode}`, 'info');
+      });
+    };
+  } else {
+    btnCopyInvite.classList.add('hidden');
+  }
+}
+
+/**
+ * Onboarding Wizard for First-Time Initial Balance Setup
+ */
+function checkOnboardingWizard(user) {
+  if (!user || user.role === 'admin' || user.role === 'superadmin') return;
+  const isMaster = user.email === 'wadwan2219@gmail.com' || user.email === 'bersama@gmail.com';
+  if (isMaster) return;
+
+  const modal = document.getElementById('modal-onboarding');
+  if (!modal) return;
+
+  const alreadyOnboarded = user.isOnboarded || user.features?.is_onboarded || localStorage.getItem('saldoku_onboarded_' + user.uid);
+  if (alreadyOnboarded) return;
+
+  const existingTabungan = getUserTabungan();
+  if (existingTabungan && existingTabungan.length > 0) {
+    markUserOnboarded(user);
+    return;
+  }
+
+  // Set invite code display in modal
+  const inviteCodeElem = document.getElementById('onboarding-invite-code-display');
+  const inviteCode = user.inviteCode || user.features?.invite_code || 'SLD-NEW';
+  if (inviteCodeElem) inviteCodeElem.textContent = inviteCode;
+
+  // Auto-format currency inputs inside modal
+  const inputBank = document.getElementById('onboarding-saldo-bank');
+  const inputTunai = document.getElementById('onboarding-saldo-tunai');
+
+  [inputBank, inputTunai].forEach(input => {
+    if (input) {
+      input.addEventListener('input', (e) => {
+        const val = parseRupiah(e.target.value);
+        e.target.value = val === 0 ? '' : new Intl.NumberFormat('id-ID').format(val);
+      });
+    }
+  });
+
+  // Show modal
+  modal.classList.remove('hidden');
+
+  // Skip button handler
+  const btnSkip = document.getElementById('btn-skip-onboarding');
+  if (btnSkip) {
+    btnSkip.onclick = () => {
+      markUserOnboarded(user);
+      modal.classList.add('hidden');
+      showToast('Dompet kas Anda siap digunakan!', 'info');
+    };
+  }
+
+  // Form submit handler
+  const form = document.getElementById('form-onboarding-saldo');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const valBank = parseRupiah(inputBank ? inputBank.value : 0);
+      const valTunai = parseRupiah(inputTunai ? inputTunai.value : 0);
+
+      const today = getTodayString();
+      if (valBank > 0) {
+        await addTabunganTransaction(user.uid, valBank, 'Saldo Awal Rekening Bank', today, 'kas', 'rekening');
+      }
+      if (valTunai > 0) {
+        await addTabunganTransaction(user.uid, valTunai, 'Saldo Awal Uang Tunai', today, 'kas', 'tunai');
+      }
+
+      markUserOnboarded(user);
+      modal.classList.add('hidden');
+      showToast('Saldo awal berhasil disimpan!', 'success');
+      loadDashboardMetrics(user.uid);
+    };
+  }
+}
+
+function markUserOnboarded(user) {
+  user.isOnboarded = true;
+  if (!user.features) user.features = {};
+  user.features.is_onboarded = true;
+  localStorage.setItem('saldoku_onboarded_' + user.uid, 'true');
+  setCurrentUser(user);
+  if (typeof window.syncUserToSupabaseCloud === 'function') {
+    window.syncUserToSupabaseCloud(user);
+  }
+}
+
+/**
  * Applies modular feature visibility based on admin settings
  */
 function applyDashboardFeatureFlags(user) {
@@ -84,6 +205,7 @@ function applyDashboardFeatureFlags(user) {
 
   const isDebtEnabled = isFeatureEnabled('debt_ledger', user);
   const isSplitEnabled = isFeatureEnabled('cash_bank_split', user);
+  const isDualPocketEnabled = isFeatureEnabled('dual_pocket', user);
 
   // 1. Debt feature widget
   const debtWidgets = document.querySelectorAll('[data-debt-feature="true"]');
@@ -108,6 +230,29 @@ function applyDashboardFeatureFlags(user) {
       const container = el.closest('.border-t');
       if (container) container.classList.add('hidden');
     });
+  }
+
+  // 4. Dual-Pocket visibility (Kas vs Tabungan)
+  const btnTransfer = document.getElementById('btn-open-modal-transfer');
+  if (btnTransfer) {
+    if (isDualPocketEnabled) {
+      btnTransfer.style.removeProperty('display');
+    } else {
+      btnTransfer.style.display = 'none';
+    }
+  }
+
+  // In single-pocket mode, hide secondary tabungan card
+  const valTabungan = document.getElementById('val-saldo-tabungan');
+  if (valTabungan) {
+    const cardTab = valTabungan.closest('.stat-card') || valTabungan.closest('.rounded-2xl') || valTabungan.closest('.p-4');
+    if (cardTab) {
+      if (isDualPocketEnabled) {
+        cardTab.style.removeProperty('display');
+      } else {
+        cardTab.style.display = 'none';
+      }
+    }
   }
 }
 

@@ -31,6 +31,13 @@
     export_reports: true    // Ekspor Laporan Excel/PDF
   };
 
+  const STARTER_FEATURES = {
+    debt_ledger: false,     // Starter Mode: Buku Kas Hutang Piutang (Nonaktif)
+    dual_pocket: false,     // Starter Mode: Kas Siap Pakai vs Tabungan (Nonaktif)
+    cash_bank_split: true,  // Starter Mode: Pemisahan Rekening vs Tunai (Aktif)
+    export_reports: false   // Starter Mode: Ekspor Laporan (Nonaktif)
+  };
+
   /**
    * Checks if an account is protected against suspension or deletion.
    */
@@ -171,7 +178,7 @@
                 workspace_id: sb.workspace_id || existing.workspace_id || ('fam_' + (sb.id || 'usr')),
                 created_at: sb.created_at || existing.created_at || new Date().toISOString(),
                 last_login: sb.last_login || existing.last_login || null,
-                features: sb.features || flagsMap[sb.id] || flagsMap[sb.email] || existing.features || { ...DEFAULT_FEATURES }
+                features: sb.features || flagsMap[sb.id] || flagsMap[sb.email] || existing.features || (isProtectedAccount(sb.email) ? { ...DEFAULT_FEATURES } : { ...STARTER_FEATURES })
               });
             }
           });
@@ -205,7 +212,7 @@
                   workspace_id: row.group_id ? row.group_id.split(':')[0] : ('fam_' + row.created_by_uid),
                   created_at: row.created_at || new Date().toISOString(),
                   last_login: row.created_at || null,
-                  features: { ...DEFAULT_FEATURES }
+                  features: { ...STARTER_FEATURES }
                 });
               }
             }
@@ -236,7 +243,7 @@
                   workspace_id: row.group_id ? row.group_id.split(':')[0] : ('fam_' + row.user_id),
                   created_at: row.created_at || new Date().toISOString(),
                   last_login: row.created_at || null,
-                  features: { ...DEFAULT_FEATURES }
+                  features: { ...STARTER_FEATURES }
                 });
               }
             }

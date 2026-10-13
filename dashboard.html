@@ -54,7 +54,16 @@
       </nav>
 
       <!-- User Profile & Logout -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Invite Code Share Pill (For Registered Accounts) -->
+        <button id="btn-copy-invite-code" type="button" title="Salin Kode Undangan Pasangan" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 transition-all text-xs font-semibold cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <span class="text-[10px] text-slate-400 hidden lg:inline">Kode Pasangan:</span>
+          <span id="display-invite-code" class="font-mono font-bold tracking-wider text-emerald-200">SLD-XXXX</span>
+        </button>
+
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-blue-500/30">
           <div class="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-black flex items-center justify-center">
             B
@@ -892,16 +901,84 @@
         </div>
       </form>
     </div>
+  <!-- Modal: Wizard Setup Saldo Awal (Onboarding untuk Pengguna Baru) -->
+  <div id="modal-onboarding" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-[#0f172a] border border-blue-500/30 w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+      
+      <!-- Top Glow Decoration -->
+      <div class="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+      <!-- Icon & Welcome Header -->
+      <div class="flex items-center gap-3.5 mb-4 relative z-10">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-base font-black text-white tracking-tight">Selamat Datang di SaldoKu!</h3>
+          <p class="text-xs text-slate-400">Atur saldo awal dompet Anda agar pencatatan langsung akurat.</p>
+        </div>
+      </div>
+
+      <form id="form-onboarding-saldo" class="space-y-4 relative z-10">
+        <!-- Saldo Rekening Bank / Digital -->
+        <div>
+          <label for="onboarding-saldo-bank" class="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>Saldo Rekening / Bank / E-Wallet</span>
+            <span class="text-[10px] text-indigo-400 font-mono">BCA, Seabank, dll</span>
+          </label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono pointer-events-none">Rp</span>
+            <input type="text" id="onboarding-saldo-bank" placeholder="0" inputmode="numeric"
+                   class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#080d1a] border border-slate-700/80 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all font-semibold">
+          </div>
+        </div>
+
+        <!-- Saldo Uang Tunai / Cash Fisik -->
+        <div>
+          <label for="onboarding-saldo-tunai" class="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>Saldo Uang Tunai (Cash Fisik)</span>
+            <span class="text-[10px] text-emerald-400 font-mono">Dompet fisik, laci</span>
+          </label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold font-mono pointer-events-none">Rp</span>
+            <input type="text" id="onboarding-saldo-tunai" placeholder="0" inputmode="numeric"
+                   class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#080d1a] border border-slate-700/80 text-white font-mono text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 transition-all font-semibold">
+          </div>
+        </div>
+
+        <!-- Info Card: Invite Code Preview -->
+        <div id="onboarding-invite-info" class="p-3 rounded-xl bg-[#080d1a]/80 border border-slate-800 text-xs space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 text-[11px]">Kode Pasangan Dompet Anda:</span>
+            <span id="onboarding-invite-code-display" class="font-mono font-bold text-emerald-300 tracking-wider">SLD-XXXX</span>
+          </div>
+          <p class="text-[10px] text-slate-400 leading-relaxed">Pasangan Anda dapat menggunakan kode ini saat mendaftar untuk berbagi dompet kas bersama.</p>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="flex items-center gap-2.5 pt-2">
+          <button type="button" id="btn-skip-onboarding" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold transition-all cursor-pointer text-center">
+            Mulai dari Rp 0
+          </button>
+          <button type="submit" id="btn-submit-onboarding" class="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all cursor-pointer text-center">
+            Simpan Saldo Awal
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- JavaScript Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js?v=2.5.0"></script>
-  <script src="js/firebase-config.js?v=2.5.0"></script>
-  <script src="js/common.js?v=2.5.0"></script>
-  <script src="js/admin-service.js?v=2.5.0"></script>
-  <script src="js/debt-engine.js?v=2.5.0"></script>
-  <script src="js/debt-service.js?v=2.5.0"></script>
-  <script src="js/dashboard.js?v=2.5.0"></script>
+  <script src="js/supabase-config.js?v=2.6.0"></script>
+  <script src="js/firebase-config.js?v=2.6.0"></script>
+  <script src="js/common.js?v=2.6.0"></script>
+  <script src="js/admin-service.js?v=2.6.0"></script>
+  <script src="js/debt-engine.js?v=2.6.0"></script>
+  <script src="js/debt-service.js?v=2.6.0"></script>
+  <script src="js/dashboard.js?v=2.6.0"></script>
 </body>
 </html>

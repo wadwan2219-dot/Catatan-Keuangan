@@ -164,6 +164,59 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ------------------------------------------------------------------------
+  // Helper: Resolve Workspace & Invite Code Pairing
+  // ------------------------------------------------------------------------
+  async function resolveRegistrationWorkspace(inviteCodeInput, newUid) {
+    const cleanCode = (inviteCodeInput || '').trim().toUpperCase();
+
+    // If user provided an invite code, attempt lookup
+    if (cleanCode) {
+      // 1. Try Supabase lookup
+      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+        try {
+          const { data: partnerRows } = await window.supabaseClient
+            .from('users')
+            .select('workspace_id, nama, features')
+            .or(`features->>invite_code.eq.${cleanCode},workspace_id.eq.${cleanCode}`);
+          if (partnerRows && partnerRows.length > 0) {
+            const partner = partnerRows[0];
+            return {
+              workspaceId: partner.workspace_id,
+              inviteCode: cleanCode,
+              partnerName: partner.nama || 'Pasangan'
+            };
+          }
+        } catch (e) {}
+      }
+
+      // 2. Fallback check local registry
+      try {
+        const localUsers = JSON.parse(localStorage.getItem('saldoku_registered_accounts') || '[]');
+        const partner = localUsers.find(u => (u.inviteCode === cleanCode || u.features?.invite_code === cleanCode));
+        if (partner) {
+          return {
+            workspaceId: partner.groupId || partner.workspace_id,
+            inviteCode: cleanCode,
+            partnerName: partner.nama || 'Pasangan'
+          };
+        }
+      } catch (e) {}
+
+      // Not found
+      return { error: 'Kode Undangan Pasangan tidak ditemukan. Periksa kembali atau kosongkan untuk membuat dompet baru.' };
+    }
+
+    // If no invite code provided, generate brand new workspace and invite code
+    const generatedWorkspaceId = 'fam_' + (newUid || ('usr_' + Date.now().toString(36)));
+    const generatedInviteCode = 'SLD-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    return {
+      workspaceId: generatedWorkspaceId,
+      inviteCode: generatedInviteCode,
+      partnerName: null
+    };
+  }
+
+  // ------------------------------------------------------------------------
   // 1. STRICT REGISTER FORM SUBMISSION (Firebase Auth + Firestore)
   // ------------------------------------------------------------------------
   if (formRegister) {
@@ -173,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
       const password = document.getElementById('reg-password')?.value || '';
       const confirmPassword = document.getElementById('reg-confirm-password')?.value || '';
+      const inviteCodeInput = (document.getElementById('reg-invite-code')?.value || '').trim().toUpperCase();
 
       if (!nama || !email || !password) {
         showToast('Semua bidang formulir harus diisi!', 'error');
@@ -199,10 +253,27 @@ document.addEventListener('DOMContentLoaded', () => {
       // Check with Firebase Auth Service if connected
       if (window.firebaseAuth && window.isFirebaseConnected()) {
         try {
+          // Resolve partner workspace before creating user
+          const workspaceRes = await resolveRegistrationWorkspace(inviteCodeInput, null);
+          if (workspaceRes.error) {
+            setRegisterLoading(false);
+            showToast(workspaceRes.error, 'error');
+            return;
+          }
+
           const userCred = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
           const fbUser = userCred.user;
 
-          const workspaceId = 'fam_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+          const finalWorkspaceId = workspaceRes.partnerName ? workspaceRes.workspaceId : ('fam_' + fbUser.uid);
+          const starterFeatures = {
+            debt_ledger: false,       // Starter: Sembunyikan buku hutang
+            dual_pocket: false,       // Starter: Sembunyikan transfer antar kantong
+            cash_bank_split: true,    // Starter: Aktif (Bank vs Tunai)
+            export_reports: false,    // Starter: Sembunyikan export CSV
+            invite_code: workspaceRes.inviteCode,
+            is_onboarded: false       // Perlu wizard saldo awal
+          };
+
           const userData = {
             uid: fbUser.uid,
             email: email,
@@ -210,14 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
             role: 'user',
             status: 'active',
             isJoint: true,
-            groupId: workspaceId,
+            groupId: finalWorkspaceId,
             memberId: 'bersama',
-            features: {
-              debt_ledger: true,
-              dual_pocket: true,
-              cash_bank_split: true,
-              export_reports: true
-            },
+            inviteCode: workspaceRes.inviteCode,
+            isOnboarded: false,
+            features: starterFeatures,
             createdAt: new Date().toISOString()
           };
 
@@ -240,7 +308,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           setCurrentUser(userData);
-          showToast('Pendaftaran akun berhasil.', 'success');
+          const successMsg = workspaceRes.partnerName 
+            ? `Berhasil terhubung ke dompet pasangan (${workspaceRes.partnerName})!`
+            : 'Pendaftaran akun berhasil.';
+          showToast(successMsg, 'success');
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
@@ -264,23 +335,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const workspaceId = 'fam_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+      const localUid = 'user_' + Date.now();
+      const workspaceRes = await resolveRegistrationWorkspace(inviteCodeInput, localUid);
+      if (workspaceRes.error) {
+        setRegisterLoading(false);
+        showToast(workspaceRes.error, 'error');
+        return;
+      }
+
+      const starterFeatures = {
+        debt_ledger: false,
+        dual_pocket: false,
+        cash_bank_split: true,
+        export_reports: false,
+        invite_code: workspaceRes.inviteCode,
+        is_onboarded: false
+      };
+
       const newUser = {
-        uid: 'user_' + Date.now(),
+        uid: localUid,
         email: email,
         nama: nama,
         passwordHash: btoa(password),
         role: 'user',
         status: 'active',
         isJoint: true,
-        groupId: workspaceId,
+        groupId: workspaceRes.workspaceId,
         memberId: 'bersama',
-        features: {
-          debt_ledger: true,
-          dual_pocket: true,
-          cash_bank_split: true,
-          export_reports: true
-        },
+        inviteCode: workspaceRes.inviteCode,
+        isOnboarded: false,
+        features: starterFeatures,
         createdAt: new Date().toISOString()
       };
       registeredUsers.push(newUser);
@@ -292,7 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       setCurrentUser(newUser);
-      showToast('Pendaftaran akun berhasil.', 'success');
+      const successMsg = workspaceRes.partnerName 
+        ? `Berhasil terhubung ke dompet pasangan (${workspaceRes.partnerName})!`
+        : 'Pendaftaran akun berhasil.';
+      showToast(successMsg, 'success');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
     });
   }
@@ -358,7 +445,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (sbRow.role) userObj.role = sbRow.role;
                 if (sbRow.workspace_id) userObj.groupId = sbRow.workspace_id;
                 if (sbRow.status) userObj.status = sbRow.status;
-                if (sbRow.features) userObj.features = sbRow.features;
+                if (sbRow.features) {
+                  userObj.features = sbRow.features;
+                  if (sbRow.features.invite_code) userObj.inviteCode = sbRow.features.invite_code;
+                  if (typeof sbRow.features.is_onboarded === 'boolean') userObj.isOnboarded = sbRow.features.is_onboarded;
+                }
               }
             } catch (sbLookupErr) {}
           }
@@ -480,6 +571,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const isMaster = emailLower === 'wadwan2219@gmail.com' || emailLower === 'bersama@gmail.com';
       const cleanGroupId = isMaster ? 'fam_wadwan_main' : (foundUser.groupId && foundUser.groupId !== 'fam_wadwan_main' && foundUser.groupId !== 'group_default' ? foundUser.groupId : ('fam_' + (foundUser.uid || 'usr')));
 
+      const inviteCode = foundUser.inviteCode || foundUser.features?.invite_code || (isMaster ? 'SLD-MAIN' : ('SLD-' + (foundUser.uid ? foundUser.uid.substring(0, 4).toUpperCase() : 'USER')));
+      const isOnboarded = typeof foundUser.isOnboarded === 'boolean' ? foundUser.isOnboarded : (typeof foundUser.features?.is_onboarded === 'boolean' ? foundUser.features.is_onboarded : isMaster);
+
       const jointUser = {
         uid: foundUser.uid || 'user_' + Date.now(),
         email: foundUser.email,
@@ -487,7 +581,16 @@ document.addEventListener('DOMContentLoaded', () => {
         memberId: foundUser.memberId || 'bersama',
         role: foundUser.role || (isMaster ? 'partner' : 'user'),
         status: foundUser.status || 'active',
-        features: foundUser.features || null,
+        inviteCode: inviteCode,
+        isOnboarded: isOnboarded,
+        features: foundUser.features || {
+          debt_ledger: false,
+          dual_pocket: false,
+          cash_bank_split: true,
+          export_reports: false,
+          invite_code: inviteCode,
+          is_onboarded: isOnboarded
+        },
         isJoint: true,
         groupId: cleanGroupId
       };

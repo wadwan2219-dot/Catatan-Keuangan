@@ -162,6 +162,10 @@ async function syncUserToSupabaseCloud(userData) {
     if (typeof window.supabaseClient === 'undefined' || !window.supabaseClient) return;
     if (typeof window.isSupabaseConnected === 'function' && !window.isSupabaseConnected()) return;
 
+    const userFeatures = { ...(userData.features || {}) };
+    if (userData.inviteCode && !userFeatures.invite_code) userFeatures.invite_code = userData.inviteCode;
+    if (typeof userData.isOnboarded === 'boolean' && typeof userFeatures.is_onboarded !== 'boolean') userFeatures.is_onboarded = userData.isOnboarded;
+
     const fullPayload = {
       id: userData.uid || userData.email,
       nama: userData.nama || userData.email.split('@')[0],
@@ -169,7 +173,7 @@ async function syncUserToSupabaseCloud(userData) {
       role: userData.role || 'user',
       workspace_id: userData.groupId || userData.workspace_id || ('fam_' + (userData.uid || 'usr')),
       status: userData.status || 'active',
-      features: userData.features || { debt_ledger: true, dual_pocket: true, cash_bank_split: true, export_reports: true }
+      features: userFeatures
     };
 
     try {
