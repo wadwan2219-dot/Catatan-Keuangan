@@ -150,26 +150,56 @@ function getCurrentUser() {
   }
 }
 
+async function syncUserToSupabaseCloud(userData) {
+  if (!userData || !userData.email) return;
+  const doSync = async () => {
+    if (typeof window.supabaseClient === 'undefined' || !window.supabaseClient) return;
+    if (typeof window.isSupabaseConnected === 'function' && !window.isSupabaseConnected()) return;
+
+    const fullPayload = {
+      id: userData.uid || userData.email,
+      nama: userData.nama || userData.email.split('@')[0],
+      email: userData.email.toLowerCase().trim(),
+      role: userData.role || 'user',
+      workspace_id: userData.groupId || userData.workspace_id || ('fam_' + (userData.uid || 'usr')),
+      status: userData.status || 'active',
+      features: userData.features || { debt_ledger: true, dual_pocket: true, cash_bank_split: true, export_reports: true }
+    };
+
+    try {
+      const { error } = await window.supabaseClient.from('users').upsert([fullPayload], { onConflict: 'id' });
+      if (error) {
+        await window.supabaseClient.from('users').upsert([{
+          id: fullPayload.id,
+          nama: fullPayload.nama,
+          email: fullPayload.email,
+          role: fullPayload.role
+        }], { onConflict: 'id' });
+      }
+    } catch (err) {
+      try {
+        await window.supabaseClient.from('users').upsert([{
+          id: fullPayload.id,
+          nama: fullPayload.nama,
+          email: fullPayload.email,
+          role: fullPayload.role
+        }], { onConflict: 'id' });
+      } catch (fallbackErr) {}
+    }
+  };
+
+  if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+    await doSync();
+  } else {
+    setTimeout(doSync, 500);
+  }
+}
+window.syncUserToSupabaseCloud = syncUserToSupabaseCloud;
+
 function setCurrentUser(userObj) {
   localStorage.setItem('saldoku_user_session', JSON.stringify(userObj));
   if (userObj && userObj.email && userObj.role !== 'admin') {
-    const syncToCloud = () => {
-      if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
-        try {
-          window.supabaseClient.from('users').upsert([{
-            id: userObj.uid || userObj.email,
-            nama: userObj.nama || userObj.email.split('@')[0],
-            email: userObj.email,
-            role: userObj.role || 'user'
-          }], { onConflict: 'id' }).then(() => {});
-        } catch (e) {}
-      }
-    };
-    if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
-      syncToCloud();
-    } else {
-      setTimeout(syncToCloud, 500);
-    }
+    syncUserToSupabaseCloud(userObj);
   }
 }
 

@@ -30,23 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const formRegister = document.getElementById('form-register');
 
   // Background cloud registry sync
-  if (window.isSupabaseConnected && window.isSupabaseConnected()) {
-    try {
-      const raw = localStorage.getItem('saldoku_registered_accounts');
-      if (raw) {
-        const list = JSON.parse(raw);
-        const toSync = list.filter(u => u && u.email && u.role !== 'admin').map(u => ({
-          id: u.uid || u.email,
-          nama: u.nama || u.email.split('@')[0],
-          email: u.email,
-          role: u.role || 'user'
-        }));
-        if (toSync.length > 0) {
-          window.supabaseClient.from('users').upsert(toSync, { onConflict: 'id' }).then(() => {});
+  try {
+    const raw = localStorage.getItem('saldoku_registered_accounts');
+    if (raw) {
+      const list = JSON.parse(raw);
+      list.filter(u => u && u.email && u.role !== 'admin').forEach(u => {
+        if (typeof window.syncUserToSupabaseCloud === 'function') {
+          window.syncUserToSupabaseCloud(u);
         }
-      }
-    } catch (e) {}
-  }
+      });
+    }
+  } catch (e) {}
 
   // Tab switching logic
   if (tabLoginBtn && tabRegisterBtn) {
@@ -240,18 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (e) {}
 
-          // Mirror to Supabase public.users in realtime
-          if (window.isSupabaseConnected && window.isSupabaseConnected()) {
-            try {
-              await window.supabaseClient.from('users').upsert([{
-                id: fbUser.uid,
-                nama: nama,
-                email: email,
-                role: 'user'
-              }], { onConflict: 'id' });
-            } catch (sbErr) {
-              console.warn('[Register] Supabase mirror fallback:', sbErr);
-            }
+          // Mirror to Supabase public.users in realtime with full metadata
+          if (typeof window.syncUserToSupabaseCloud === 'function') {
+            await window.syncUserToSupabaseCloud(userData);
           }
 
           setCurrentUser(userData);
@@ -301,16 +286,9 @@ document.addEventListener('DOMContentLoaded', () => {
       registeredUsers.push(newUser);
       localStorage.setItem('saldoku_registered_accounts', JSON.stringify(registeredUsers));
 
-      // Mirror to Supabase public.users if connected
-      if (window.isSupabaseConnected && window.isSupabaseConnected()) {
-        try {
-          await window.supabaseClient.from('users').upsert([{
-            id: newUser.uid,
-            nama: newUser.nama,
-            email: newUser.email,
-            role: 'user'
-          }], { onConflict: 'id' });
-        } catch (e) {}
+      // Mirror to Supabase public.users if connected with full metadata
+      if (typeof window.syncUserToSupabaseCloud === 'function') {
+        await window.syncUserToSupabaseCloud(newUser);
       }
 
       setCurrentUser(newUser);
@@ -383,15 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // Sync to Supabase public.users on successful login
-          if (window.isSupabaseConnected && window.isSupabaseConnected()) {
-            try {
-              window.supabaseClient.from('users').upsert([{
-                id: fbUser.uid,
-                nama: userObj.nama,
-                email: userObj.email,
-                role: userObj.role || 'user'
-              }], { onConflict: 'id' }).then(() => {});
-            } catch (sbErr) {}
+          if (typeof window.syncUserToSupabaseCloud === 'function') {
+            window.syncUserToSupabaseCloud(userObj);
           }
 
           setCurrentUser(userObj);
