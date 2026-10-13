@@ -8,20 +8,13 @@
 let activeTransactionFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
-  let user = getCurrentUser();
+  const user = requireAuth();
+  if (!user) return;
 
-  // Pastikan sesi aktif diarahkan ke Iwan (Pribadi)
-  if (!user || user.memberId !== 'iwan') {
-    user = {
-      uid: 'iwan',
-      memberId: 'iwan',
-      nama: 'Iwan (Pribadi)',
-      email: 'iwan@pribadi.com',
-      role: 'personal',
-      isJoint: false,
-      groupId: 'pribadi_iwan'
-    };
-    setCurrentUser(user);
+  // Strict PIN portal guard: Only user with memberId 'iwan' can view this dashboard
+  if (user.memberId !== 'iwan') {
+    window.location.href = 'dashboard.html';
+    return;
   }
 
   // Populate User Header

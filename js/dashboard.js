@@ -11,31 +11,29 @@ let selectedExpenseMonth = 'current'; // 'current' | 'YYYY-MM' | 'all'
 let activeCategoryFilter = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  let user = getCurrentUser();
+  const user = requireAuth();
+  if (!user) return;
 
   // Guard: Suspended Account Check
-  if (user && user.status === 'suspended') {
+  if (user.status === 'suspended') {
     logoutUser();
     return;
   }
 
   // Guard: Super Admin Redirect
-  if (user && (user.role === 'admin' || user.role === 'superadmin')) {
+  if (user.role === 'admin' || user.role === 'superadmin') {
     window.location.href = 'admin.html';
     return;
   }
 
-  if (!user || !user.isJoint) {
-    user = {
-      uid: 'bersama',
-      memberId: 'bersama',
-      nama: 'Iwan & Wadda (Akun Bersama)',
-      email: 'bersama@saldoku.id',
-      role: 'partner',
-      isJoint: true,
-      groupId: 'fam_wadwan_main'
-    };
-    setCurrentUser(user);
+  // Guard: Redirect Personal PIN Modes to respective dashboards
+  if (user.memberId === 'iwan') {
+    window.location.href = 'dashboard-iwan.html';
+    return;
+  }
+  if (user.memberId === 'wadda') {
+    window.location.href = 'dashboard-wadda.html';
+    return;
   }
 
   // Populate User Header Info

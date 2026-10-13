@@ -86,9 +86,15 @@ function showToast(message, type = 'success') {
 // Multi-Tenant Workspace & Household Partition Identifier
 // Strictly isolates data between Iwan & Wadda and newly registered users.
 // --------------------------------------------------------------------------
+function isMasterJointUser(user) {
+  if (!user) return false;
+  const email = (user.email || '').toLowerCase().trim();
+  return email === 'wadwan2219@gmail.com' || email === 'bersama@gmail.com' || user.uid === 'wadwan' || user.uid === 'bersama';
+}
+
 function getActiveWorkspaceId(user) {
   if (!user) user = getCurrentUser();
-  if (!user) return 'fam_wadwan_main';
+  if (!user) return 'guest_workspace';
 
   // Super Admin Workspace
   if (user.role === 'admin' || user.role === 'superadmin' || user.uid === 'admin_master') {
@@ -100,22 +106,19 @@ function getActiveWorkspaceId(user) {
   if (user.memberId === 'wadda' || user.uid === 'wadda') return 'pribadi_wadda';
 
   // Iwan & Wadda Original Joint Account
-  const email = (user.email || '').toLowerCase().trim();
-  if (email === 'wadwan2219@gmail.com' || email === 'bersama@gmail.com' || user.uid === 'wadwan' || user.uid === 'bersama') {
+  if (isMasterJointUser(user)) {
     return 'fam_wadwan_main';
   }
 
   // Any other registered user has their own unique custom groupId
-  if (user.groupId && user.groupId !== 'group_default') {
+  // STRICT GUARD: Non-master users must NEVER get fam_wadwan_main or group_default
+  if (user.groupId && user.groupId !== 'fam_wadwan_main' && user.groupId !== 'group_default') {
     return user.groupId;
   }
 
-  // Fallback for user with specific uid
-  if (user.uid && user.uid !== 'wadwan' && user.uid !== 'bersama') {
-    return 'fam_' + user.uid;
-  }
-
-  return 'fam_wadwan_main';
+  // Fallback for user with specific uid or clean email
+  const fallbackId = user.uid || (user.email ? user.email.replace(/[^a-z0-9]/gi, '_') : 'usr_' + Date.now());
+  return 'fam_' + fallbackId;
 }
 
 // --------------------------------------------------------------------------
@@ -138,9 +141,12 @@ function getCurrentUser() {
     const isExplicitPersonal = user.role === 'personal' || user.isPersonal === true || user.uid === 'iwan' || user.uid === 'wadda';
     if (!isExplicitPersonal) {
       user.isJoint = true;
+      const isMaster = isMasterJointUser(user);
       user.groupId = getActiveWorkspaceId(user);
-      user.memberId = user.memberId || 'bersama';
-      user.role = user.role || 'partner';
+      user.memberId = user.memberId || (isMaster ? 'bersama' : (user.uid || 'usr'));
+      if (!user.role) {
+        user.role = isMaster ? 'partner' : 'user';
+      }
     } else {
       user.groupId = user.uid === 'iwan' ? 'pribadi_iwan' : 'pribadi_wadda';
     }
@@ -213,6 +219,7 @@ function logoutUser() {
   localStorage.removeItem('saldoku_user_session');
   localStorage.removeItem('saldoku_data_tabungan');
   localStorage.removeItem('saldoku_data_belanja');
+  localStorage.removeItem('saldoku_debt_entries');
   showToast('Sesi telah diakhiri.', 'info');
   setTimeout(() => {
     window.location.href = 'index.html';
@@ -319,14 +326,39 @@ function mergeRemoteData(remoteList, localList) {
 
 async function syncSupabaseData(onUpdateCallback) {
   try {
+    const user = getCurrentUser();
+    if (!user) {
+      if (onUpdateCallback) onUpdateCallback();
+      return;
+    }
+
+    const workspace = getActiveWorkspaceId(user);
+    if (workspace === 'admin_workspace' || workspace === 'guest_workspace') {
+      if (onUpdateCallback) onUpdateCallback();
+      return;
+    }
+
     let savings = null;
     let expenses = null;
 
-    // 1. Try Supabase SDK first
+    // 1. Try Supabase SDK first with strictly workspace-scoped queries
     if (window.supabaseClient && window.isSupabaseConnected()) {
       try {
-        const { data: s } = await window.supabaseClient.from('tabungan').select('*');
-        const { data: e } = await window.supabaseClient.from('belanja').select('*');
+        let tabQuery = window.supabaseClient.from('tabungan').select('*');
+        let belQuery = window.supabaseClient.from('belanja').select('*');
+
+        if (workspace === 'fam_wadwan_main') {
+          tabQuery = tabQuery.or('group_id.like.fam_wadwan_main%,group_id.like.group_default%,group_id.is.null');
+          belQuery = belQuery.or('group_id.like.fam_wadwan_main%,group_id.like.group_default%,group_id.is.null');
+        } else if (workspace.startsWith('pribadi_')) {
+          tabQuery = tabQuery.or(`group_id.like.${workspace}%,user_id.eq.${user.uid}`);
+          belQuery = belQuery.or(`group_id.like.${workspace}%,user_id.eq.${user.uid}`);
+        } else {
+          tabQuery = tabQuery.like('group_id', `${workspace}%`);
+          belQuery = belQuery.like('group_id', `${workspace}%`);
+        }
+
+        const [{ data: s }, { data: e }] = await Promise.all([tabQuery, belQuery]);
         if (s) savings = s;
         if (e) expenses = e;
       } catch (errSDK) {
@@ -336,18 +368,34 @@ async function syncSupabaseData(onUpdateCallback) {
 
     // 2. Guaranteed REST API fallback if SDK is still initializing or returned null
     if ((!savings || !expenses) && typeof window.fetchSupabaseRest === 'function') {
-      if (!savings) savings = await window.fetchSupabaseRest('tabungan');
-      if (!expenses) expenses = await window.fetchSupabaseRest('belanja');
+      let filterParam = '';
+      if (workspace === 'fam_wadwan_main') {
+        filterParam = 'or=(group_id.like.fam_wadwan_main*,group_id.like.group_default*,group_id.is.null)';
+      } else if (workspace.startsWith('pribadi_')) {
+        filterParam = `or=(group_id.like.${workspace}*,user_id.eq.${user.uid})`;
+      } else {
+        filterParam = `group_id=like.${workspace}*`;
+      }
+      if (!savings) savings = await window.fetchSupabaseRest('tabungan', filterParam);
+      if (!expenses) expenses = await window.fetchSupabaseRest('belanja', filterParam);
     }
 
-    // 3. Save authoritative data
+    // 3. Save authoritative data strictly scoped to this workspace
     if (savings && Array.isArray(savings)) {
-      const merged = mergeRemoteData(savings, getRawTabungan());
+      const filteredSavings = workspace === 'fam_wadwan_main'
+        ? savings.filter(item => isItemMatchingGroup(item.group_id, 'fam_wadwan_main') || isItemMatchingGroup(item.group_id, 'group_default') || (!item.group_id && (!item.user_id || item.user_id === 'bersama' || item.user_id === 'wadwan')))
+        : savings.filter(item => isItemMatchingGroup(item.group_id, workspace));
+
+      const merged = mergeRemoteData(filteredSavings, getUserTabungan());
       saveRawTabungan(merged);
     }
 
     if (expenses && Array.isArray(expenses)) {
-      const merged = mergeRemoteData(expenses, getRawBelanja());
+      const filteredExpenses = workspace === 'fam_wadwan_main'
+        ? expenses.filter(item => isItemMatchingGroup(item.group_id, 'fam_wadwan_main') || isItemMatchingGroup(item.group_id, 'group_default') || (!item.group_id && (!item.user_id || item.user_id === 'bersama' || item.user_id === 'wadwan')))
+        : expenses.filter(item => isItemMatchingGroup(item.group_id, workspace));
+
+      const merged = mergeRemoteData(filteredExpenses, getUserBelanja());
       saveRawBelanja(merged);
     }
 
@@ -359,20 +407,10 @@ async function syncSupabaseData(onUpdateCallback) {
       window.supabaseClient
         .channel('saldoku_cash_channel')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tabungan' }, async () => {
-          const { data } = await window.supabaseClient.from('tabungan').select('*');
-          if (data) {
-            const merged = mergeRemoteData(data, getRawTabungan());
-            saveRawTabungan(merged);
-            if (onUpdateCallback) onUpdateCallback();
-          }
+          await syncSupabaseData(onUpdateCallback);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'belanja' }, async () => {
-          const { data } = await window.supabaseClient.from('belanja').select('*');
-          if (data) {
-            const merged = mergeRemoteData(data, getRawBelanja());
-            saveRawBelanja(merged);
-            if (onUpdateCallback) onUpdateCallback();
-          }
+          await syncSupabaseData(onUpdateCallback);
         })
         .subscribe();
     }
@@ -394,19 +432,44 @@ function syncFirestoreData(onUpdateCallback) {
   // Secondary Firebase Firestore support if active
   if (window.firebaseDb && window.isFirebaseConnected && window.isFirebaseConnected()) {
     try {
+      const user = getCurrentUser();
+      const workspace = user ? getActiveWorkspaceId(user) : 'guest_workspace';
+      if (workspace === 'admin_workspace' || workspace === 'guest_workspace') return;
+
       window.firebaseDb.collection('tabungan').onSnapshot((snapshot) => {
         const cloudSavings = [];
-        snapshot.forEach(doc => { cloudSavings.push({ id: doc.id, ...doc.data() }); });
+        snapshot.forEach(doc => {
+          const d = { id: doc.id, ...doc.data() };
+          if (workspace === 'fam_wadwan_main') {
+            if (isItemMatchingGroup(d.group_id, 'fam_wadwan_main') || isItemMatchingGroup(d.group_id, 'group_default') || (!d.group_id && (!d.user_id || d.user_id === 'bersama' || d.user_id === 'wadwan'))) {
+              cloudSavings.push(d);
+            }
+          } else if (isItemMatchingGroup(d.group_id, workspace)) {
+            cloudSavings.push(d);
+          }
+        });
         if (cloudSavings.length > 0) {
-          saveRawTabungan(cloudSavings);
+          const merged = mergeRemoteData(cloudSavings, getUserTabungan());
+          saveRawTabungan(merged);
           if (onUpdateCallback) onUpdateCallback();
         }
       });
+
       window.firebaseDb.collection('belanja').onSnapshot((snapshot) => {
         const cloudExpenses = [];
-        snapshot.forEach(doc => { cloudExpenses.push({ id: doc.id, ...doc.data() }); });
+        snapshot.forEach(doc => {
+          const d = { id: doc.id, ...doc.data() };
+          if (workspace === 'fam_wadwan_main') {
+            if (isItemMatchingGroup(d.group_id, 'fam_wadwan_main') || isItemMatchingGroup(d.group_id, 'group_default') || (!d.group_id && (!d.user_id || d.user_id === 'bersama' || d.user_id === 'wadwan'))) {
+              cloudExpenses.push(d);
+            }
+          } else if (isItemMatchingGroup(d.group_id, workspace)) {
+            cloudExpenses.push(d);
+          }
+        });
         if (cloudExpenses.length > 0) {
-          saveRawBelanja(cloudExpenses);
+          const merged = mergeRemoteData(cloudExpenses, getUserBelanja());
+          saveRawBelanja(merged);
           if (onUpdateCallback) onUpdateCallback();
         }
       });

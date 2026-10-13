@@ -334,26 +334,55 @@ document.addEventListener('DOMContentLoaded', () => {
           const userCred = await window.firebaseAuth.signInWithEmailAndPassword(email, password);
           const fbUser = userCred.user;
 
+          const emailClean = (fbUser.email || '').toLowerCase().trim();
+          const isMasterPartner = emailClean === 'wadwan2219@gmail.com' || emailClean === 'bersama@gmail.com';
+          const defaultGroupId = isMasterPartner ? 'fam_wadwan_main' : ('fam_' + fbUser.uid);
+
           let userObj = {
             uid: fbUser.uid,
             email: fbUser.email,
             nama: fbUser.displayName || fbUser.email.split('@')[0].toUpperCase(),
-            role: 'partner',
+            role: isMasterPartner ? 'partner' : 'user',
+            status: 'active',
             isJoint: true,
-            groupId: 'fam_wadwan_main',
+            groupId: defaultGroupId,
             memberId: 'bersama'
           };
 
-          // Fetch name and workspace groupId from Firestore users collection
+          // 1. Fetch from Supabase public.users (Cloud Single Source of Truth)
+          if (window.isSupabaseConnected && window.isSupabaseConnected()) {
+            try {
+              const { data: sbRow } = await window.supabaseClient.from('users').select('*').eq('id', fbUser.uid).single();
+              if (sbRow) {
+                if (sbRow.nama) userObj.nama = sbRow.nama;
+                if (sbRow.role) userObj.role = sbRow.role;
+                if (sbRow.workspace_id) userObj.groupId = sbRow.workspace_id;
+                if (sbRow.status) userObj.status = sbRow.status;
+                if (sbRow.features) userObj.features = sbRow.features;
+              }
+            } catch (sbLookupErr) {}
+          }
+
+          // 2. Fetch name and workspace groupId from Firestore users collection if available
           if (window.firebaseDb) {
             try {
               const doc = await window.firebaseDb.collection('users').doc(fbUser.uid).get();
               if (doc.exists) {
                 const data = doc.data();
                 if (data.nama) userObj.nama = data.nama;
-                if (data.groupId) userObj.groupId = data.groupId;
+                if (data.groupId && (data.groupId !== 'fam_wadwan_main' || isMasterPartner)) {
+                  userObj.groupId = data.groupId;
+                }
+                if (data.role) userObj.role = data.role;
               }
             } catch (e) {}
+          }
+
+          // Strict Multi-Tenant Isolation Guard:
+          // Non-master partner accounts MUST NEVER inherit fam_wadwan_main
+          if (!isMasterPartner && (userObj.groupId === 'fam_wadwan_main' || userObj.groupId === 'group_default')) {
+            userObj.groupId = 'fam_' + fbUser.uid;
+            userObj.role = 'user';
           }
 
           if (typeof getActiveWorkspaceId === 'function') {
@@ -447,28 +476,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 2. Standard / Joint User Authentication Route
+      const emailLower = foundUser.email.toLowerCase().trim();
+      const isMaster = emailLower === 'wadwan2219@gmail.com' || emailLower === 'bersama@gmail.com';
+      const cleanGroupId = isMaster ? 'fam_wadwan_main' : (foundUser.groupId && foundUser.groupId !== 'fam_wadwan_main' && foundUser.groupId !== 'group_default' ? foundUser.groupId : ('fam_' + (foundUser.uid || 'usr')));
+
       const jointUser = {
-        uid: foundUser.uid || 'bersama',
+        uid: foundUser.uid || 'user_' + Date.now(),
         email: foundUser.email,
-        nama: foundUser.nama || 'Iwan & Wadda (Akun Bersama)',
+        nama: foundUser.nama || foundUser.email.split('@')[0],
         memberId: foundUser.memberId || 'bersama',
-        role: foundUser.role || 'partner',
+        role: foundUser.role || (isMaster ? 'partner' : 'user'),
         status: foundUser.status || 'active',
         features: foundUser.features || null,
         isJoint: true,
-        groupId: foundUser.groupId || (typeof getActiveWorkspaceId === 'function' ? getActiveWorkspaceId(foundUser) : 'fam_wadwan_main')
+        groupId: cleanGroupId
       };
 
       // Sync user to Supabase public.users
-      if (window.isSupabaseConnected && window.isSupabaseConnected() && foundUser.email !== 'admin@saldoku.id') {
-        try {
-          window.supabaseClient.from('users').upsert([{
-            id: foundUser.uid || foundUser.email,
-            nama: foundUser.nama || foundUser.email.split('@')[0],
-            email: foundUser.email,
-            role: foundUser.role || 'user'
-          }], { onConflict: 'id' }).then(() => {});
-        } catch (sbErr) {}
+      if (typeof window.syncUserToSupabaseCloud === 'function') {
+        window.syncUserToSupabaseCloud(jointUser);
       }
 
       setCurrentUser(jointUser);

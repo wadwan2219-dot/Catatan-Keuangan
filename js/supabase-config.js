@@ -63,11 +63,12 @@ window.isSupabaseConnected = function () {
 };
 
 // Direct REST API Fallback (Guaranteed to work with zero dependencies)
-window.fetchSupabaseRest = async function (table) {
+window.fetchSupabaseRest = async function (table, queryParams = '') {
   const cfg = window.SUPABASE_CONFIG || DEFAULT_SUPABASE_CONFIG;
   if (!cfg || !cfg.url) return null;
   try {
-    const res = await fetch(`${cfg.url}/rest/v1/${table}?select=*`, {
+    const qs = queryParams ? `?select=*&${queryParams}` : '?select=*';
+    const res = await fetch(`${cfg.url}/rest/v1/${table}${qs}`, {
       headers: {
         apikey: cfg.anonKey,
         Authorization: `Bearer ${cfg.anonKey}`

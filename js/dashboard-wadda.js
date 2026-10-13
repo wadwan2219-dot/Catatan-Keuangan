@@ -7,20 +7,13 @@
 let activeTransactionFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
-  let user = getCurrentUser();
+  const user = requireAuth();
+  if (!user) return;
 
-  // Pastikan sesi aktif diarahkan ke Wadda (Pribadi)
-  if (!user || user.memberId !== 'wadda') {
-    user = {
-      uid: 'wadda',
-      memberId: 'wadda',
-      nama: 'Wadda (Pribadi)',
-      email: 'wadda@pribadi.com',
-      role: 'personal',
-      isJoint: false,
-      groupId: 'pribadi_wadda'
-    };
-    setCurrentUser(user);
+  // Strict PIN portal guard: Only user with memberId 'wadda' can view this dashboard
+  if (user.memberId !== 'wadda') {
+    window.location.href = 'dashboard.html';
+    return;
   }
 
   // Populate User Header

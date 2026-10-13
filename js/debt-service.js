@@ -121,8 +121,15 @@
     // 1. If Supabase is connected, subscribe to Supabase Realtime
     if (window.isSupabaseConnected && window.isSupabaseConnected()) {
       try {
-        // Initial fetch from Supabase
-        window.supabaseClient.from('debt_entries').select('*').then(({ data, error }) => {
+        // Initial fetch from Supabase (Workspace-scoped)
+        let debtQuery = window.supabaseClient.from('debt_entries').select('*');
+        if (activeWorkspace === 'fam_wadwan_main') {
+          debtQuery = debtQuery.or('group_id.eq.fam_wadwan_main,group_id.eq.group_default,group_id.is.null');
+        } else {
+          debtQuery = debtQuery.eq('group_id', activeWorkspace);
+        }
+
+        debtQuery.then(({ data, error }) => {
           if (data && !error) {
             const filtered = data.filter(d => isDebtEntryMatchingWorkspace(d, activeWorkspace));
             const mapped = filtered.map(d => ({
@@ -151,7 +158,13 @@
         const channel = window.supabaseClient
           .channel('saldoku_debt_channel')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'debt_entries' }, async () => {
-            const { data } = await window.supabaseClient.from('debt_entries').select('*');
+            let realtimeDebtQuery = window.supabaseClient.from('debt_entries').select('*');
+            if (activeWorkspace === 'fam_wadwan_main') {
+              realtimeDebtQuery = realtimeDebtQuery.or('group_id.eq.fam_wadwan_main,group_id.eq.group_default,group_id.is.null');
+            } else {
+              realtimeDebtQuery = realtimeDebtQuery.eq('group_id', activeWorkspace);
+            }
+            const { data } = await realtimeDebtQuery;
             if (data) {
               const filtered = data.filter(d => isDebtEntryMatchingWorkspace(d, activeWorkspace));
               const mapped = filtered.map(d => ({
