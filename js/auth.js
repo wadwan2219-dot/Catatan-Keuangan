@@ -67,21 +67,106 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Password Visibility Toggle
-  const btnTogglePassword = document.getElementById('btn-toggle-password');
-  const loginPasswordInput = document.getElementById('login-password');
-  if (btnTogglePassword && loginPasswordInput) {
-    btnTogglePassword.addEventListener('click', (e) => {
-      e.preventDefault();
-      const isPassword = loginPasswordInput.type === 'password';
-      loginPasswordInput.type = isPassword ? 'text' : 'password';
-      const eyeOpen = document.getElementById('icon-eye-open');
-      const eyeClosed = document.getElementById('icon-eye-closed');
-      if (eyeOpen && eyeClosed) {
-        eyeOpen.classList.toggle('hidden', !isPassword);
-        eyeClosed.classList.toggle('hidden', isPassword);
+  // ------------------------------------------------------------------------
+  // Helper: Setup Password Visibility Toggle
+  // ------------------------------------------------------------------------
+  function setupPasswordToggle(btnId, inputId, eyeOpenId, eyeClosedId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    const eyeOpen = document.getElementById(eyeOpenId);
+    const eyeClosed = document.getElementById(eyeClosedId);
+
+    if (btn && input) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        if (eyeOpen && eyeClosed) {
+          eyeOpen.classList.toggle('hidden', !isPassword);
+          eyeClosed.classList.toggle('hidden', isPassword);
+        }
+      });
+    }
+  }
+
+  // Initialize Password Toggles
+  setupPasswordToggle('btn-toggle-password', 'login-password', 'icon-eye-open', 'icon-eye-closed');
+  setupPasswordToggle('btn-toggle-reg-password', 'reg-password', 'icon-reg-eye-open', 'icon-reg-eye-closed');
+  setupPasswordToggle('btn-toggle-reg-confirm-password', 'reg-confirm-password', 'icon-reg-confirm-eye-open', 'icon-reg-confirm-eye-closed');
+
+  // ------------------------------------------------------------------------
+  // Helper: Real-Time Password Validation Feedback
+  // ------------------------------------------------------------------------
+  const SVG_ICON_CHECK = `<svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>`;
+  const SVG_ICON_CROSS = `<svg class="w-3.5 h-3.5 text-rose-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>`;
+  const SVG_ICON_DOT = `<span class="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0"></span>`;
+
+  function initRegisterRealtimeValidation() {
+    const regPass = document.getElementById('reg-password');
+    const regConfirm = document.getElementById('reg-confirm-password');
+    const ruleLength = document.getElementById('rule-length');
+    const ruleMatch = document.getElementById('rule-match');
+    const iconLength = document.getElementById('icon-rule-length');
+    const iconMatch = document.getElementById('icon-rule-match');
+
+    if (!regPass || !regConfirm || !ruleLength || !ruleMatch) return;
+
+    function evaluateRules() {
+      const p = regPass.value;
+      const c = regConfirm.value;
+
+      // 1. Min 6 characters
+      if (p.length >= 6) {
+        ruleLength.className = 'flex items-center gap-2 text-[11px] text-emerald-400 font-medium transition-colors';
+        if (iconLength) iconLength.innerHTML = SVG_ICON_CHECK;
+      } else {
+        ruleLength.className = 'flex items-center gap-2 text-[11px] text-slate-400 transition-colors';
+        if (iconLength) iconLength.innerHTML = SVG_ICON_DOT;
       }
-    });
+
+      // 2. Password Match
+      if (c.length > 0) {
+        if (p === c && p.length >= 6) {
+          ruleMatch.className = 'flex items-center gap-2 text-[11px] text-emerald-400 font-medium transition-colors';
+          if (iconMatch) iconMatch.innerHTML = SVG_ICON_CHECK;
+        } else {
+          ruleMatch.className = 'flex items-center gap-2 text-[11px] text-rose-400 font-medium transition-colors';
+          if (iconMatch) iconMatch.innerHTML = SVG_ICON_CROSS;
+        }
+      } else {
+        ruleMatch.className = 'flex items-center gap-2 text-[11px] text-slate-400 transition-colors';
+        if (iconMatch) iconMatch.innerHTML = SVG_ICON_DOT;
+      }
+    }
+
+    regPass.addEventListener('input', evaluateRules);
+    regConfirm.addEventListener('input', evaluateRules);
+  }
+
+  initRegisterRealtimeValidation();
+
+  // ------------------------------------------------------------------------
+  // Helper: Register Button Loading State
+  // ------------------------------------------------------------------------
+  function setRegisterLoading(isLoading) {
+    const btn = document.getElementById('btn-submit-register');
+    const spinner = document.getElementById('btn-reg-spinner');
+    const text = document.getElementById('btn-reg-text');
+    if (!btn) return;
+
+    if (isLoading) {
+      btn.disabled = true;
+      btn.classList.add('opacity-75', 'cursor-not-allowed');
+      btn.classList.remove('active:scale-[0.98]');
+      if (spinner) spinner.classList.remove('hidden');
+      if (text) text.textContent = 'Mendaftarkan Akun...';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('opacity-75', 'cursor-not-allowed');
+      btn.classList.add('active:scale-[0.98]');
+      if (spinner) spinner.classList.add('hidden');
+      if (text) text.textContent = 'Daftar Akun';
+    }
   }
 
   // ------------------------------------------------------------------------
@@ -90,13 +175,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (formRegister) {
     formRegister.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const nama = document.getElementById('reg-nama').value.trim();
-      const email = document.getElementById('reg-email').value.trim();
-      const password = document.getElementById('reg-password').value;
-      const confirmPassword = document.getElementById('reg-confirm-password').value;
+      const nama = (document.getElementById('reg-nama')?.value || '').trim();
+      const email = (document.getElementById('reg-email')?.value || '').trim().toLowerCase();
+      const password = document.getElementById('reg-password')?.value || '';
+      const confirmPassword = document.getElementById('reg-confirm-password')?.value || '';
 
       if (!nama || !email || !password) {
         showToast('Semua bidang formulir harus diisi!', 'error');
+        return;
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Format email tidak valid!', 'error');
+        return;
+      }
+
+      if (password.length < 6) {
+        showToast('Kata sandi minimal 6 karakter!', 'error');
         return;
       }
 
@@ -105,10 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      if (password.length < 6) {
-        showToast('Kata sandi minimal 6 karakter!', 'error');
-        return;
-      }
+      setRegisterLoading(true);
 
       // Check with Firebase Auth Service if connected
       if (window.firebaseAuth && window.isFirebaseConnected()) {
@@ -167,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 600);
           return;
         } catch (err) {
+          setRegisterLoading(false);
           let errText = 'Gagal mendaftarkan akun.';
           if (err.code === 'auth/email-already-in-use') errText = 'Email ini sudah terdaftar. Silakan masuk.';
           if (err.code === 'auth/invalid-email') errText = 'Format email tidak valid.';
@@ -181,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const existing = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
       
       if (existing) {
+        setRegisterLoading(false);
         showToast('Email ini sudah terdaftar. Silakan masuk.', 'error');
         return;
       }
@@ -210,12 +304,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Mirror to Supabase public.users if connected
       if (window.isSupabaseConnected && window.isSupabaseConnected()) {
         try {
-          window.supabaseClient.from('users').insert([{
+          await window.supabaseClient.from('users').upsert([{
             id: newUser.uid,
             nama: newUser.nama,
             email: newUser.email,
             role: 'user'
-          }]).then(() => {});
+          }], { onConflict: 'id' });
         } catch (e) {}
       }
 
