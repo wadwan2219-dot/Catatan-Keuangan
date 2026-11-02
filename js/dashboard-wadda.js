@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadWaddaDashboardMetrics() {
   const stats = calculateUserBalance('wadda');
   const transactions = getAllTransactions('wadda');
+  const cycleConfig = typeof getUserCycleConfig === 'function' ? getUserCycleConfig('wadda') : null;
+  if (typeof updateCyclePeriodUI === 'function' && cycleConfig) {
+    updateCyclePeriodUI(cycleConfig);
+  }
+  const cycleTransactions = (typeof filterTransactionsByCycle === 'function' && cycleConfig)
+    ? filterTransactionsByCycle(transactions, cycleConfig, activeCyclePeriod)
+    : transactions;
 
   // 1. Update Card 1: Kas Siap Pakai
   const valKas = document.getElementById('val-saldo-kas');
@@ -93,12 +100,13 @@ function loadWaddaDashboardMetrics() {
   if (subTotalRekening) subTotalRekening.textContent = formatRupiah(stats.totalRekening);
   if (subTotalTunai) subTotalTunai.textContent = formatRupiah(stats.totalTunai);
 
-  // 4. Update Card 4: Total Pengeluaran
+  // 4. Update Card 4: Total Pengeluaran (Siklus Aktif vs Akumulasi)
   const valBelanja = document.getElementById('val-total-belanja');
   const detailBelanja = document.getElementById('val-pengeluaran-detail');
-  if (valBelanja) valBelanja.textContent = formatRupiah(stats.totalBelanja);
+  const cycleExpenses = cycleTransactions.filter(t => t.type === 'belanja').reduce((acc, cur) => acc + (Number(cur.amount || cur.jumlah) || 0), 0);
+  if (valBelanja) valBelanja.textContent = formatRupiah(cycleExpenses);
   if (detailBelanja) {
-    detailBelanja.textContent = `Kas: ${formatRupiah(stats.kasKeluar)} • Tabungan: ${formatRupiah(stats.tabunganKeluar)}`;
+    detailBelanja.textContent = (activeCyclePeriod === 'current' ? 'Siklus Aktif' : 'Periode Terpilih') + ` • Akumulasi: ${formatRupiah(stats.totalBelanja)}`;
   }
 
   // 5. Update Pocket Ratio Progress Bar
