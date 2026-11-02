@@ -52,11 +52,12 @@
         <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Tabungan</a>
         <a href="belanja.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Pengeluaran</a>
         <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Riwayat</a>
+        <a href="profil.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Profil</a>
       </nav>
 
       <!-- User Profile & Logout -->
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-cyan-500/30">
+        <a href="profil.html" title="Buka Profil dan Pengaturan Siklus" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-cyan-500/30 hover:border-cyan-400 transition-all cursor-pointer">
           <div class="w-6 h-6 rounded-full bg-cyan-500 text-slate-950 text-xs font-black flex items-center justify-center">
             W
           </div>
@@ -64,7 +65,7 @@
             <p id="user-display-name" class="text-xs font-bold text-cyan-300 leading-tight">Wadda (Pribadi)</p>
             <p id="user-display-email" class="text-[10px] text-slate-400 leading-tight">wadda@pribadi.com</p>
           </div>
-        </div>
+        </a>
         <button id="btn-logout" title="Keluar Akun" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold cursor-pointer">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -379,20 +380,42 @@
     <div class="rounded-2xl p-5 sm:p-6 bg-[#0c1427] border border-slate-800/80 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 class="text-base font-bold text-white">Aktivitas Transaksi Wadda</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-white">Aktivitas Transaksi Wadda</h3>
+            <span id="badge-cycle-info" class="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500/15 text-teal-300 border border-teal-500/30 font-mono">
+              Siklus Aktif
+            </span>
+          </div>
           <p class="text-xs text-slate-400 mt-0.5">Daftar mutasi arus dana kas dan simpanan.</p>
         </div>
 
-        <!-- Filter Chips: Semua / Kas Siap Pakai / Tabungan -->
-        <div class="flex bg-[#080d1a] p-1 rounded-xl border border-slate-800 text-xs">
-          <button id="filter-all" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-bold transition-all bg-indigo-600 text-white cursor-pointer">
-            Semua
-          </button>
-          <button id="filter-kas" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition-all cursor-pointer">
-            Kas Siap Pakai
-          </button>
-          <button id="filter-tabungan" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition-all cursor-pointer">
-            Tabungan
+        <!-- Period Selector and Quick Reset Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Period Selector Dropdown -->
+          <select id="select-transaction-period" class="px-2.5 py-1.5 rounded-xl bg-[#080d1a] border border-slate-700 text-slate-200 text-xs font-semibold focus:outline-none focus:border-cyan-500 transition-all cursor-pointer">
+            <option value="current">Periode Berjalan (Aktif)</option>
+            <option value="all">Semua Riwayat</option>
+          </select>
+
+          <!-- Filter Chips: Semua / Kas / Tabungan -->
+          <div class="flex bg-[#080d1a] p-1 rounded-xl border border-slate-800 text-xs">
+            <button id="filter-all" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-bold transition-all bg-indigo-600 text-white cursor-pointer">
+              Semua
+            </button>
+            <button id="filter-kas" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition-all cursor-pointer">
+              Kas
+            </button>
+            <button id="filter-tabungan" type="button" class="btn-filter px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition-all cursor-pointer">
+              Tabungan
+            </button>
+          </div>
+
+          <!-- Quick Action: Tutup Buku -->
+          <button id="btn-quick-tutup-buku" type="button" title="Tutup Buku dan Reset Siklus Manual" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span class="hidden sm:inline">Tutup Buku</span>
           </button>
         </div>
       </div>
@@ -859,11 +882,72 @@
     </div>
   </div>
 
+
+  <!-- MODAL: KONFIRMASI TUTUP BUKU MANUAL -->
+  <div id="modal-tutup-buku" class="fixed inset-0 z-50 bg-[#060a14]/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#0c1427] border border-amber-500/30 rounded-[24px] p-6 shadow-2xl space-y-5 animate-fade-in relative text-left">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Tutup Buku Periode Saat Ini?</h3>
+            <p class="text-[11px] text-slate-400">Ringkasan transaksi sebelum memulai siklus baru.</p>
+          </div>
+        </div>
+        <button type="button" id="btn-close-modal-tutup-buku" class="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Summary Details -->
+      <div class="space-y-3 text-xs bg-[#080d1a] p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/60">
+          <span class="text-slate-400">Periode Berjalan:</span>
+          <span id="modal-summary-period" class="font-mono text-white font-bold">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Total Pemasukan Siklus Ini:</span>
+          <span id="modal-summary-income" class="font-mono font-bold text-emerald-400">+ Rp 0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Total Pengeluaran Siklus Ini:</span>
+          <span id="modal-summary-expense" class="font-mono font-bold text-rose-400">- Rp 0</span>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/60">
+          <span class="text-slate-300 font-semibold">Sisa Saldo Kas Dibawa (Rollover):</span>
+          <span id="modal-summary-balance" class="font-mono font-black text-cyan-300 text-sm">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] leading-relaxed">
+        <strong>Pemberitahuan:</strong> Transaksi siklus ini akan diarsipkan ke snapshot dan tampilan aktivitas transaksi akan dimulai kembali dari nol. Seluruh data transaksi masa lalu <strong>tetap aman dan tersimpan di database</strong>.
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3 pt-1">
+        <button type="button" id="btn-cancel-tutup-buku" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer">
+          Batal
+        </button>
+        <button type="button" id="btn-confirm-tutup-buku" class="flex-1 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-500/25 transition-all cursor-pointer">
+          Konfirmasi dan Tutup Buku
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- JavaScript Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js?v=2.6.1"></script>
-  <script src="js/firebase-config.js?v=2.6.1"></script>
-  <script src="js/common.js?v=2.6.1"></script>
-  <script src="js/dashboard-wadda.js?v=2.6.1"></script>
+  <script src="js/supabase-config.js?v=2.7.0"></script>
+  <script src="js/firebase-config.js?v=2.7.0"></script>
+  <script src="js/common.js?v=2.7.0"></script>
+  <script src="js/dashboard-wadda.js?v=2.7.0"></script>
 </body>
 </html>

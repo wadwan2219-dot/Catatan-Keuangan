@@ -51,6 +51,7 @@
         <a href="dashboard.html" class="nav-link active text-sm text-blue-400 font-bold">Dashboard</a>
         <a href="hutang.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Hutang Bersih</a>
         <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Riwayat</a>
+        <a href="profil.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Profil</a>
       </nav>
 
       <!-- User Profile & Logout -->
@@ -64,7 +65,7 @@
           <span id="display-invite-code" class="font-mono font-bold tracking-wider text-emerald-200">SLD-XXXX</span>
         </button>
 
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-blue-500/30">
+        <a href="profil.html" title="Buka Profil & Pengaturan" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-blue-500/30 hover:border-blue-400 transition-all cursor-pointer">
           <div class="w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-black flex items-center justify-center">
             B
           </div>
@@ -72,7 +73,7 @@
             <p id="user-display-name" class="text-xs font-bold text-blue-300 leading-tight">Akun Bersama</p>
             <p id="user-display-email" class="text-[10px] text-slate-400 leading-tight">Iwan & Wadda</p>
           </div>
-        </div>
+        </a>
         <button id="btn-logout" title="Keluar Akun" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold cursor-pointer">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -973,12 +974,12 @@
 
   <!-- JavaScript Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js?v=2.6.1"></script>
-  <script src="js/firebase-config.js?v=2.6.1"></script>
-  <script src="js/common.js?v=2.6.1"></script>
-  <script src="js/admin-service.js?v=2.6.1"></script>
-  <script src="js/debt-engine.js?v=2.6.1"></script>
-  <script src="js/debt-service.js?v=2.6.1"></script>
-  <script src="js/dashboard.js?v=2.6.1"></script>
+  <script src="js/supabase-config.js?v=2.7.0"></script>
+  <script src="js/firebase-config.js?v=2.7.0"></script>
+  <script src="js/common.js?v=2.7.0"></script>
+  <script src="js/admin-service.js?v=2.7.0"></script>
+  <script src="js/debt-engine.js?v=2.7.0"></script>
+  <script src="js/debt-service.js?v=2.7.0"></script>
+  <script src="js/dashboard.js?v=2.7.0"></script>
 </body>
 </html>

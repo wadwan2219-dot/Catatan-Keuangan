@@ -5,6 +5,7 @@
  */
 
 let activeTransactionFilter = 'all';
+let activeCyclePeriod = 'current';
 
 document.addEventListener('DOMContentLoaded', () => {
   const user = requireAuth();
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init Modals and Actions
   initWaddaModals(user);
   initTransactionFilters();
+  initCycleControls('wadda');
 
   // Load Initial Dashboard Metrics
   loadWaddaDashboardMetrics();
@@ -129,7 +131,7 @@ function loadWaddaDashboardMetrics() {
   loadCategoryExpenseAnalysis();
 
   // 8. Render Transactions
-  renderWaddaTransactions(transactions);
+  renderWaddaTransactions(cycleTransactions);
 }
 
 // --------------------------------------------------------------------------
@@ -1196,4 +1198,133 @@ function initWaddaModals(user) {
       ['modal-pemasukan', 'modal-pengeluaran', 'modal-transfer', 'modal-edit-transaksi'].forEach(mId => toggleModal(mId, false));
     }
   });
+}
+
+
+/**
+ * Cycle Accounting & Tutup Buku Controls (Wadda)
+ */
+function initCycleControls(userId) {
+  // Check and apply automatic scheduled reset on load
+  const autoCp = checkAndApplyAutoReset(userId);
+  if (autoCp) {
+    showToast('Siklus baru dimulai otomatis (Jadwal cut-off tercapai).', 'info');
+  }
+
+  // Period Selector change handler
+  const selectPeriod = document.getElementById('select-transaction-period');
+  if (selectPeriod) {
+    selectPeriod.addEventListener('change', (e) => {
+      activeCyclePeriod = e.target.value;
+      loadWaddaDashboardMetrics();
+    });
+  }
+
+  // Quick Tutup Buku Modal handlers
+  const modal = document.getElementById('modal-tutup-buku');
+  const btnOpen = document.getElementById('btn-quick-tutup-buku');
+  const btnClose = document.getElementById('btn-close-modal-tutup-buku');
+  const btnCancel = document.getElementById('btn-cancel-tutup-buku');
+  const btnConfirm = document.getElementById('btn-confirm-tutup-buku');
+
+  const closeModal = () => {
+    if (modal) modal.classList.add('hidden');
+  };
+
+  const openModal = () => {
+    if (!modal) return;
+    const config = getUserCycleConfig(userId);
+    const allList = getAllTransactions(userId);
+    const activeTransactions = filterTransactionsByCycle(allList, config, 'current');
+
+    let totalMasuk = 0;
+    let totalKeluar = 0;
+
+    activeTransactions.forEach(t => {
+      const amt = Number(t.amount || t.jumlah || 0);
+      if (t.type === 'tabungan') {
+        totalMasuk += amt;
+      } else {
+        totalKeluar += amt;
+      }
+    });
+
+    const stats = calculateUserBalance(userId);
+    const startText = (config.current_cycle_start || '').slice(0, 10);
+    const todayText = getTodayString();
+
+    const periodElem = document.getElementById('modal-summary-period');
+    const incomeElem = document.getElementById('modal-summary-income');
+    const expenseElem = document.getElementById('modal-summary-expense');
+    const balanceElem = document.getElementById('modal-summary-balance');
+
+    if (periodElem) periodElem.textContent = `${startText} s/d ${todayText}`;
+    if (incomeElem) incomeElem.textContent = `+ ${formatRupiah(totalMasuk)}`;
+    if (expenseElem) expenseElem.textContent = `- ${formatRupiah(totalKeluar)}`;
+    if (balanceElem) balanceElem.textContent = formatRupiah(stats.saldoKas);
+
+    modal.classList.remove('hidden');
+  };
+
+  if (btnOpen) btnOpen.addEventListener('click', openModal);
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+  if (btnConfirm) {
+    btnConfirm.addEventListener('click', () => {
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Memproses...';
+      try {
+        closeCurrentCycle(userId, 'Tutup buku manual dari Dashboard');
+        showToast('Buku periode berhasil ditutup! Siklus baru dimulai.', 'success');
+        activeCyclePeriod = 'current';
+        closeModal();
+        loadWaddaDashboardMetrics();
+      } catch (err) {
+        showToast('Gagal melakukan tutup buku.', 'error');
+      } finally {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = 'Konfirmasi dan Tutup Buku';
+      }
+    });
+  }
+
+  // Cross-page or settings sync listener
+  window.addEventListener('saldoku_cycle_updated', () => {
+    loadWaddaDashboardMetrics();
+  });
+}
+
+function updateCyclePeriodUI(cycleConfig) {
+  const select = document.getElementById('select-transaction-period');
+  const badge = document.getElementById('badge-cycle-info');
+
+  if (select) {
+    const currentVal = activeCyclePeriod;
+    let optionsHtml = `
+      <option value="current"${currentVal === 'current' ? ' selected' : ''}>Periode Berjalan (Aktif)</option>
+      <option value="all"${currentVal === 'all' ? ' selected' : ''}>Semua Riwayat</option>
+    `;
+
+    (cycleConfig.history_checkpoints || []).forEach(cp => {
+      const s = (cp.start_date || '').slice(0, 10);
+      const e = (cp.end_date || '').slice(0, 10);
+      optionsHtml += `<option value="${cp.cycle_id}"${currentVal === cp.cycle_id ? ' selected' : ''}>Siklus: ${s} s/d ${e}</option>`;
+    });
+
+    select.innerHTML = optionsHtml;
+  }
+
+  if (badge) {
+    if (activeCyclePeriod === 'current') {
+      badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500/15 text-teal-300 border border-teal-500/30 font-mono';
+      badge.textContent = 'Siklus Aktif';
+    } else if (activeCyclePeriod === 'all') {
+      badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-mono';
+      badge.textContent = 'Semua Waktu';
+    } else {
+      badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono';
+      badge.textContent = 'Arsip Siklus';
+    }
+  }
 }

@@ -1238,3 +1238,184 @@ async function updateTransactionItem(id, type, updatedData) {
   }
   return null;
 }
+
+// --------------------------------------------------------------------------
+// 9. Personal Accounting Cycle Engine (Tutup Buku & Auto-Reset Siklus)
+// --------------------------------------------------------------------------
+
+function getUserCycleConfig(userId) {
+  if (!userId) {
+    const u = getCurrentUser();
+    userId = u ? (u.memberId || u.uid) : 'default';
+  }
+
+  const storageKey = 'saldoku_cycle_config_' + userId;
+  let config = null;
+
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) config = JSON.parse(raw);
+  } catch (e) {}
+
+  // Check if session user has features.personal_cycle
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.features && currentUser.features.personal_cycle) {
+    config = { ...currentUser.features.personal_cycle, ...(config || {}) };
+  }
+
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  if (!config) {
+    config = {
+      auto_reset_enabled: true,
+      cutoff_day: 1, // 1 to 31
+      current_cycle_id: 'cycle_' + now.getFullYear() + '_' + String(now.getMonth() + 1).padStart(2, '0'),
+      current_cycle_start: currentMonthStart,
+      last_reset_at: currentMonthStart,
+      history_checkpoints: []
+    };
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(config));
+    } catch (e) {}
+  }
+
+  if (!Array.isArray(config.history_checkpoints)) {
+    config.history_checkpoints = [];
+  }
+
+  return config;
+}
+
+function saveUserCycleConfig(userId, config) {
+  if (!userId) {
+    const u = getCurrentUser();
+    userId = u ? (u.memberId || u.uid) : 'default';
+  }
+
+  const storageKey = 'saldoku_cycle_config_' + userId;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(config));
+  } catch (e) {}
+
+  // Update current session user features
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    if (!currentUser.features) currentUser.features = {};
+    currentUser.features.personal_cycle = config;
+    localStorage.setItem('saldoku_user_session', JSON.stringify(currentUser));
+
+    if (typeof window.syncUserToSupabaseCloud === 'function' && currentUser.role !== 'admin') {
+      window.syncUserToSupabaseCloud(currentUser);
+    }
+  }
+
+  window.dispatchEvent(new CustomEvent('saldoku_cycle_updated', { detail: config }));
+  return config;
+}
+
+function filterTransactionsByCycle(transactions, config, selectedPeriod = 'current') {
+  if (!Array.isArray(transactions)) return [];
+  if (selectedPeriod === 'all' || selectedPeriod === 'semua') {
+    return transactions;
+  }
+
+  // If a historical cycle ID is requested
+  if (selectedPeriod && selectedPeriod !== 'current') {
+    const checkpoint = (config.history_checkpoints || []).find(c => c.cycle_id === selectedPeriod);
+    if (checkpoint) {
+      const startDate = (checkpoint.start_date || '').slice(0, 10);
+      const endDate = (checkpoint.end_date || '').slice(0, 10);
+      return transactions.filter(t => {
+        const itemDate = (t.tanggal || '').slice(0, 10);
+        return (!startDate || itemDate >= startDate) && (!endDate || itemDate <= endDate);
+      });
+    }
+  }
+
+  // Active / Current cycle (default)
+  const cycleStart = (config.current_cycle_start || '').slice(0, 10);
+  if (!cycleStart) return transactions;
+
+  return transactions.filter(t => {
+    const itemDate = (t.tanggal || '').slice(0, 10);
+    return itemDate >= cycleStart;
+  });
+}
+
+function closeCurrentCycle(userId, customNote = '') {
+  const config = getUserCycleConfig(userId);
+  const allList = getAllTransactions(userId);
+  const activeTransactions = filterTransactionsByCycle(allList, config, 'current');
+
+  let totalMasuk = 0;
+  let totalKeluar = 0;
+
+  activeTransactions.forEach(t => {
+    const amt = Number(t.amount || t.jumlah || 0);
+    if (t.type === 'tabungan') {
+      totalMasuk += amt;
+    } else {
+      totalKeluar += amt;
+    }
+  });
+
+  const stats = calculateUserBalance(userId);
+  const nowIso = new Date().toISOString();
+
+  const checkpoint = {
+    cycle_id: config.current_cycle_id || ('cycle_' + Date.now()),
+    start_date: config.current_cycle_start,
+    end_date: nowIso,
+    total_masuk: totalMasuk,
+    total_keluar: totalKeluar,
+    saldo_akhir_kas: stats.saldoKas,
+    saldo_akhir_total: stats.totalAset,
+    closed_at: nowIso,
+    note: customNote || 'Tutup buku manual'
+  };
+
+  config.history_checkpoints.unshift(checkpoint);
+  config.current_cycle_id = 'cycle_' + Date.now();
+  config.current_cycle_start = nowIso;
+  config.last_reset_at = nowIso;
+
+  saveUserCycleConfig(userId, config);
+  return checkpoint;
+}
+
+function checkAndApplyAutoReset(userId) {
+  const config = getUserCycleConfig(userId);
+  if (!config.auto_reset_enabled) return null;
+
+  const now = new Date();
+  const todayDay = now.getDate();
+  const cutoffDay = Math.min(Math.max(1, Number(config.cutoff_day) || 1), 31);
+
+  const lastReset = config.last_reset_at ? new Date(config.last_reset_at) : new Date(0);
+  
+  // Calculate if a cutoff has arrived since last reset
+  // Case A: Last reset happened in a previous month, and today is on or past the cutoff day
+  const isDifferentMonth = (now.getFullYear() > lastReset.getFullYear()) || 
+                           (now.getFullYear() === lastReset.getFullYear() && now.getMonth() > lastReset.getMonth());
+
+  let shouldTrigger = false;
+  if (isDifferentMonth && todayDay >= cutoffDay) {
+    shouldTrigger = true;
+  }
+
+  if (shouldTrigger) {
+    console.log(`[Auto-Reset] Tanggal cut-off (${cutoffDay}) tercapai. Melakukan tutup buku otomatis...`);
+    const cp = closeCurrentCycle(userId, `Tutup buku otomatis (Cut-off tgl ${cutoffDay})`);
+    return cp;
+  }
+
+  return null;
+}
+
+// Global exports
+window.getUserCycleConfig = getUserCycleConfig;
+window.saveUserCycleConfig = saveUserCycleConfig;
+window.filterTransactionsByCycle = filterTransactionsByCycle;
+window.closeCurrentCycle = closeCurrentCycle;
+window.checkAndApplyAutoReset = checkAndApplyAutoReset;

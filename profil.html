@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SaldoKu - Profil & Preferensi Keuangan</title>
+  <meta name="description" content="Pusat pengaturan profil pengguna, preferensi siklus pembukuan, dan reset transaksi otomatis.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Font Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+  </style>
+</head>
+<body class="pb-20 bg-[#080d1a] text-slate-100 min-h-screen selection:bg-emerald-500 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 backdrop-blur-md bg-[#0c1427]/90 border-b border-slate-800/80">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a id="brand-logo-link" href="dashboard.html" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        </div>
+        <span class="text-lg font-extrabold text-white tracking-tight">Saldo<span class="text-emerald-400">Ku</span></span>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-6">
+        <a id="nav-dashboard-link" href="dashboard.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Dashboard</a>
+        <a href="tabungan.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Tabungan</a>
+        <a href="belanja.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Pengeluaran</a>
+        <a href="riwayat.html" class="nav-link text-sm text-slate-300 hover:text-white transition-colors">Riwayat</a>
+        <a href="profil.html" class="nav-link active text-sm text-emerald-400 font-bold">Profil</a>
+      </nav>
+
+      <!-- User Profile & Logout -->
+      <div class="flex items-center gap-3">
+        <a href="profil.html" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0e172e] border border-emerald-500/40 hover:border-emerald-400 transition-all cursor-pointer">
+          <div id="header-avatar" class="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 text-xs font-black flex items-center justify-center">
+            U
+          </div>
+          <div class="hidden sm:block text-left">
+            <p id="header-user-name" class="text-xs font-bold text-emerald-300 leading-tight">Pengguna</p>
+            <p id="header-user-role" class="text-[10px] text-slate-400 leading-tight">Mode Personal</p>
+          </div>
+        </a>
+        <button id="btn-logout" title="Keluar Akun" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all text-xs font-semibold cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span class="hidden sm:inline">Keluar</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+    <!-- Header Page Banner -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#0c1427] via-[#101b35] to-[#0c1427] border border-emerald-500/20 shadow-xl">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+            Pengaturan Akun
+          </span>
+          <span id="badge-cloud-status" class="inline-flex items-center gap-1.5 text-[11px] text-slate-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Cloud Sinkron
+          </span>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">Profil & Preferensi Keuangan</h1>
+        <p class="text-xs sm:text-sm text-slate-300">
+          Kelola profil pengguna, konfigurasi jadwal cut-off siklus mutasi, dan tutup buku berkala.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a id="btn-back-to-dashboard" href="dashboard.html" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Kembali ke Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Section 1: User Identity Card -->
+    <div class="rounded-2xl p-5 sm:p-6 bg-[#0c1427] border border-slate-800/80 shadow-md space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white">Identitas Pengguna</h2>
+            <p class="text-[11px] text-slate-400">Informasi akun dan partisi data yang sedang aktif.</p>
+          </div>
+        </div>
+        <span id="card-role-badge" class="px-2.5 py-1 rounded-lg text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+          Personal Mode
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        <div class="p-3.5 rounded-xl bg-[#080d1a] border border-slate-800/80">
+          <span class="text-slate-400 block text-[11px]">Nama Lengkap</span>
+          <span id="profile-display-name" class="font-bold text-white text-sm mt-0.5 block truncate">-</span>
+        </div>
+        <div class="p-3.5 rounded-xl bg-[#080d1a] border border-slate-800/80">
+          <span class="text-slate-400 block text-[11px]">Alamat Email</span>
+          <span id="profile-display-email" class="font-mono text-slate-200 text-xs mt-0.5 block truncate">-</span>
+        </div>
+        <div class="p-3.5 rounded-xl bg-[#080d1a] border border-slate-800/80">
+          <span class="text-slate-400 block text-[11px]">Partisi Workspace</span>
+          <span id="profile-display-workspace" class="font-mono text-cyan-300 text-xs mt-0.5 block truncate">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Siklus Pembukuan & Reset Transaksi (Core Feature) -->
+    <div class="rounded-2xl p-5 sm:p-6 bg-[#0c1427] border border-slate-800/80 shadow-md space-y-6">
+      
+      <!-- Section Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-teal-500/15 text-teal-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white">Siklus Pembukuan & Reset Transaksi</h2>
+            <p class="text-[11px] text-slate-400">Atur jadwal tutup buku otomatis atau lakukan reset manual dengan riwayat tetap tersimpan aman.</p>
+          </div>
+        </div>
+
+        <button type="button" id="btn-open-modal-tutup-buku" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-white text-xs font-bold transition-all cursor-pointer self-start sm:self-auto">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Tutup Buku Sekarang (Manual)
+        </button>
+      </div>
+
+      <!-- Feature Controls Form -->
+      <form id="form-cycle-settings" class="space-y-5">
+
+        <!-- 1. Toggle Switch Auto-Reset -->
+        <div class="flex items-center justify-between p-4 rounded-xl bg-[#080d1a] border border-slate-800/80">
+          <div class="space-y-0.5 pr-4">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-xs">Reset Siklus Otomatis</span>
+              <span id="badge-toggle-status" class="px-2 py-0.5 rounded text-[9.5px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Aktif
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Bila diaktifkan, mutasi aktivitas transaksi akan di-reset otomatis setiap tanggal cut-off yang dipilih. Seluruh data riwayat transaksi lampau <strong>tetap tersimpan utuh dan tidak pernah dihapus</strong>.
+            </p>
+          </div>
+
+          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <input type="checkbox" id="toggle-auto-reset" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+
+        <!-- 2. Pengaturan Tanggal Cut-off Siklus -->
+        <div id="container-cutoff-settings" class="space-y-3 p-4 rounded-xl bg-[#080d1a] border border-slate-800/80">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label for="select-cutoff-day" class="block text-xs font-bold text-slate-200">
+                Pilih Tanggal Cut-off Siklus Bulanan
+              </label>
+              <span class="text-[11px] text-slate-400 block mt-0.5">
+                Siklus baru akan otomatis dimulai saat tanggal ini tercapai setiap bulannya.
+              </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400 font-mono">Setiap Tanggal:</span>
+              <select id="select-cutoff-day" class="px-3 py-1.5 rounded-lg bg-[#0c1427] border border-slate-700 text-white font-mono text-xs font-bold focus:outline-none focus:border-emerald-500 transition-all">
+                <!-- Populated dynamically 1..31 -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-800/60">
+            <span class="text-[11px] text-slate-400 font-medium">Preset Cepat:</span>
+            <button type="button" class="btn-preset-cutoff px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10.5px] font-semibold border border-slate-700 transition-all cursor-pointer" data-day="1">
+              Tanggal 1 (Awal Bulan)
+            </button>
+            <button type="button" class="btn-preset-cutoff px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10.5px] font-semibold border border-slate-700 transition-all cursor-pointer" data-day="25">
+              Tanggal 25 (Gajian)
+            </button>
+            <button type="button" class="btn-preset-cutoff px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10.5px] font-semibold border border-slate-700 transition-all cursor-pointer" data-day="28">
+              Tanggal 28 (Akhir Bulan)
+            </button>
+          </div>
+
+          <!-- Next Reset Preview Indicator -->
+          <div class="mt-2 p-3 rounded-lg bg-[#0c1427] border border-teal-500/20 text-xs flex items-center justify-between">
+            <span class="text-slate-400">Jadwal Tutup Buku Otomatis Berikutnya:</span>
+            <span id="preview-next-reset-date" class="font-bold text-teal-300 font-mono">-</span>
+          </div>
+        </div>
+
+        <!-- 3. Current Active Cycle Information -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-[#080d1a] border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Awal Siklus Berjalan</span>
+            <span id="current-cycle-start-text" class="font-bold text-white font-mono mt-0.5 block">-</span>
+          </div>
+          <div class="p-3.5 rounded-xl bg-[#080d1a] border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Terakhir Direset</span>
+            <span id="last-reset-date-text" class="font-bold text-slate-300 font-mono mt-0.5 block">-</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end pt-2">
+          <button type="submit" id="btn-save-cycle-config" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Simpan Preferensi Jadwal
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+
+    <!-- Section 3: Riwayat Checkpoint Arsip Siklus Lampau -->
+    <div class="rounded-2xl p-5 sm:p-6 bg-[#0c1427] border border-slate-800/80 shadow-md space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white">Arsip Siklus yang Pernah Ditutup</h2>
+            <p class="text-[11px] text-slate-400">Catatan snapshot penutupan buku periode sebelumnya.</p>
+          </div>
+        </div>
+        <span id="count-archived-cycles" class="text-xs font-mono text-slate-400">0 Arsip</span>
+      </div>
+
+      <!-- History Table Container -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 uppercase tracking-wider text-[10.5px]">
+              <th class="py-2.5 px-3 font-bold">Periode Siklus</th>
+              <th class="py-2.5 px-3 font-bold">Total Masuk</th>
+              <th class="py-2.5 px-3 font-bold">Total Belanja</th>
+              <th class="py-2.5 px-3 font-bold">Saldo Akhir Kas</th>
+              <th class="py-2.5 px-3 font-bold">Tipe & Tanggal Tutup</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-cycle-history" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+            <tr>
+              <td colspan="5" class="py-8 text-center text-slate-500 font-sans">
+                Belum ada arsip siklus penutupan buku sebelumnya.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: KONFIRMASI TUTUP BUKU MANUAL                                   -->
+  <!-- ===================================================================== -->
+  <div id="modal-tutup-buku" class="fixed inset-0 z-50 bg-[#060a14]/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#0c1427] border border-amber-500/30 rounded-[24px] p-6 shadow-2xl space-y-5 animate-fade-in relative text-left">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Tutup Buku Periode Saat Ini?</h3>
+            <p class="text-[11px] text-slate-400">Ringkasan transaksi sebelum memulai siklus baru.</p>
+          </div>
+        </div>
+        <button type="button" id="btn-close-modal-tutup-buku" class="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Summary Details -->
+      <div class="space-y-3 text-xs bg-[#080d1a] p-4 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/60">
+          <span class="text-slate-400">Periode Berjalan:</span>
+          <span id="modal-summary-period" class="font-mono text-white font-bold">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Total Pemasukan Siklus Ini:</span>
+          <span id="modal-summary-income" class="font-mono font-bold text-emerald-400">+ Rp 0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">Total Pengeluaran Siklus Ini:</span>
+          <span id="modal-summary-expense" class="font-mono font-bold text-rose-400">- Rp 0</span>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800/60">
+          <span class="text-slate-300 font-semibold">Sisa Saldo Kas Dibawa (*Rollover*):</span>
+          <span id="modal-summary-balance" class="font-mono font-black text-cyan-300 text-sm">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] leading-relaxed">
+        <strong>Pemberitahuan:</strong> Transaksi siklus ini akan diarsipkan ke snapshot dan tampilan aktivitas transaksi akan dimulai kembali dari nol. Seluruh data transaksi masa lalu <strong>tetap aman dan tersimpan di database</strong>.
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-3 pt-1">
+        <button type="button" id="btn-cancel-tutup-buku" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer">
+          Batal
+        </button>
+        <button type="button" id="btn-confirm-tutup-buku" class="flex-1 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-amber-500/25 transition-all cursor-pointer">
+          Konfirmasi & Tutup Buku
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js?v=2.7.0"></script>
+  <script src="js/firebase-config.js?v=2.7.0"></script>
+  <script src="js/common.js?v=2.7.0"></script>
+  <script src="js/profil.js?v=2.7.0"></script>
+</body>
+</html>
