@@ -1326,7 +1326,14 @@ function filterTransactionsByCycle(transactions, config, selectedPeriod = 'curre
     if (checkpoint) {
       const startDate = (checkpoint.start_date || '').slice(0, 10);
       const endDate = (checkpoint.end_date || '').slice(0, 10);
+      const startIso = checkpoint.start_date || '';
+      const endIso = checkpoint.end_date || '';
+
       return transactions.filter(t => {
+        const tIso = t.created_at || t.createdAt || '';
+        if (tIso && startIso && endIso && startIso.length > 10 && endIso.length > 10) {
+          return tIso >= startIso && tIso <= endIso;
+        }
         const itemDate = (t.tanggal || '').slice(0, 10);
         return (!startDate || itemDate >= startDate) && (!endDate || itemDate <= endDate);
       });
@@ -1334,16 +1341,26 @@ function filterTransactionsByCycle(transactions, config, selectedPeriod = 'curre
   }
 
   // Active / Current cycle (default)
-  const cycleStart = (config.current_cycle_start || '').slice(0, 10);
-  if (!cycleStart) return transactions;
+  const cycleStartIso = config.current_cycle_start || '';
+  const cycleStartDate = cycleStartIso.slice(0, 10);
+  if (!cycleStartDate) return transactions;
 
   return transactions.filter(t => {
+    const tIso = t.created_at || t.createdAt || '';
+    if (tIso && cycleStartIso.length > 10) {
+      return tIso >= cycleStartIso;
+    }
     const itemDate = (t.tanggal || '').slice(0, 10);
-    return itemDate >= cycleStart;
+    return itemDate >= cycleStartDate;
   });
 }
 
-function closeCurrentCycle(userId, customNote = '') {
+async function closeCurrentCycle(userId, customNote = '', balanceAction = 'rollover') {
+  if (!userId) {
+    const u = getCurrentUser();
+    userId = u ? (u.memberId || u.uid) : 'default';
+  }
+
   const config = getUserCycleConfig(userId);
   const allList = getAllTransactions(userId);
   const activeTransactions = filterTransactionsByCycle(allList, config, 'current');
@@ -1361,7 +1378,41 @@ function closeCurrentCycle(userId, customNote = '') {
   });
 
   const stats = calculateUserBalance(userId);
-  const nowIso = new Date().toISOString();
+  const sisaKasAwal = stats.saldoKas;
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const today = getTodayString();
+
+  let actionNote = '';
+  // Apply Balance Action if Cash balance is positive
+  if (sisaKasAwal > 0) {
+    if (balanceAction === 'transfer_to_savings') {
+      await transferAntarKantong(
+        userId,
+        'kas',
+        'tabungan',
+        sisaKasAwal,
+        `Sisa kas siklus dialihkan ke tabungan`,
+        today,
+        'rekening',
+        'rekening'
+      );
+      actionNote = `Sisa kas ${formatRupiah(sisaKasAwal)} dialihkan ke tabungan`;
+    } else if (balanceAction === 'reset_kas_zero') {
+      await addBelanjaTransaction(
+        userId,
+        `Penyesuaian Tutup Buku: Reset Kas ke Rp 0`,
+        sisaKasAwal,
+        'Penyesuaian Saldo',
+        today,
+        'kas',
+        'rekening'
+      );
+      actionNote = `Sisa kas ${formatRupiah(sisaKasAwal)} di-reset ke Rp 0`;
+    }
+  }
+
+  const updatedStats = calculateUserBalance(userId);
 
   const checkpoint = {
     cycle_id: config.current_cycle_id || ('cycle_' + Date.now()),
@@ -1369,15 +1420,17 @@ function closeCurrentCycle(userId, customNote = '') {
     end_date: nowIso,
     total_masuk: totalMasuk,
     total_keluar: totalKeluar,
-    saldo_akhir_kas: stats.saldoKas,
-    saldo_akhir_total: stats.totalAset,
+    saldo_akhir_kas: balanceAction === 'rollover' ? stats.saldoKas : updatedStats.saldoKas,
+    saldo_akhir_total: updatedStats.totalAset,
     closed_at: nowIso,
-    note: customNote || 'Tutup buku manual'
+    balance_action: balanceAction,
+    note: customNote || (actionNote || 'Tutup buku manual')
   };
 
   config.history_checkpoints.unshift(checkpoint);
-  config.current_cycle_id = 'cycle_' + Date.now();
-  config.current_cycle_start = nowIso;
+  config.current_cycle_id = 'cycle_' + (Date.now() + 100);
+  // Start the new cycle 1 second into future so any closing transfer entries remain in past/closed checkpoint
+  config.current_cycle_start = new Date(Date.now() + 1000).toISOString();
   config.last_reset_at = nowIso;
 
   saveUserCycleConfig(userId, config);

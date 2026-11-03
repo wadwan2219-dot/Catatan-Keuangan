@@ -926,6 +926,54 @@
         </div>
       </div>
 
+      <!-- Opsi Perlakuan Sisa Kas (Interactive Radio / Toggle Cards) -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+          Pilihan Perlakuan Sisa Kas:
+        </label>
+        
+        <div class="space-y-2" id="group-balance-actions">
+          
+          <!-- Opsi 1: Rollover (Bawa ke siklus baru) -->
+          <label class="balance-action-option flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-[#080d1a] hover:border-amber-500/50 cursor-pointer transition-all">
+            <input type="radio" name="cycle_balance_action" value="rollover" class="mt-0.5 text-amber-500 focus:ring-0">
+            <div class="text-xs">
+              <span class="font-bold text-white block">
+                Bawa Sisa Kas (<span class="val-rollover-amount font-mono text-emerald-400">Rp 0</span>) ke Siklus Baru
+              </span>
+              <span class="text-slate-400 text-[11px] block mt-0.5">Sisa kas tetap berada di Kas Siap Pakai untuk siklus berikutnya.</span>
+            </div>
+          </label>
+
+          <!-- Opsi 2: Transfer ke Tabungan (Rekomendasi ⭐) -->
+          <label class="balance-action-option flex items-start gap-3 p-3 rounded-xl border border-teal-500/40 bg-teal-500/10 hover:border-teal-400 cursor-pointer transition-all">
+            <input type="radio" name="cycle_balance_action" value="transfer_to_savings" checked class="mt-0.5 text-teal-400 focus:ring-0">
+            <div class="text-xs">
+              <span class="font-bold text-teal-300 flex items-center gap-1.5 flex-wrap">
+                Pindahkan Sisa Kas (<span class="val-transfer-amount font-mono text-white">Rp 0</span>) ke Tabungan
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 font-bold uppercase tracking-wider">Rekomendasi ⭐</span>
+              </span>
+              <span class="text-slate-400 text-[11px] block mt-0.5">Kas siap pakai di-reset jadi <strong class="text-white">Rp 0</strong>, sisa uang otomatis tersimpan aman di celengan Tabungan.</span>
+            </div>
+          </label>
+
+          <!-- Opsi 3: Reset Kas ke Rp 0 (Murni Reset Kas) -->
+          <label class="balance-action-option flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-[#080d1a] hover:border-amber-500/50 cursor-pointer transition-all">
+            <input type="radio" name="cycle_balance_action" value="reset_kas_zero" class="mt-0.5 text-amber-500 focus:ring-0">
+            <div class="text-xs">
+              <span class="font-bold text-slate-200 block">Kosongkan Kas ke Rp 0</span>
+              <span class="text-slate-400 text-[11px] block mt-0.5">Kas siap pakai dikosongkan ke <strong class="text-white">Rp 0</strong> dengan catatan penyesuaian tutup buku.</span>
+            </div>
+          </label>
+
+        </div>
+
+        <div id="box-balance-zero-notice" class="hidden text-[11px] text-slate-400 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
+          Saldo kas saat ini Rp 0. Tidak ada sisa kas yang perlu dialihkan, siklus baru akan dimulai langsung dari nol.
+        </div>
+      </div>
+
+
       <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] leading-relaxed">
         <strong>Pemberitahuan:</strong> Transaksi siklus ini akan diarsipkan ke snapshot dan tampilan aktivitas transaksi akan dimulai kembali dari nol. Seluruh data transaksi masa lalu <strong>tetap aman dan tersimpan di database</strong>.
       </div>
@@ -945,9 +993,9 @@
 
   <!-- JavaScript Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-config.js?v=2.7.2"></script>
-  <script src="js/firebase-config.js?v=2.7.2"></script>
-  <script src="js/common.js?v=2.7.2"></script>
-  <script src="js/dashboard-wadda.js?v=2.7.2"></script>
+  <script src="js/supabase-config.js?v=2.7.3"></script>
+  <script src="js/firebase-config.js?v=2.7.3"></script>
+  <script src="js/common.js?v=2.7.3"></script>
+  <script src="js/dashboard-wadda.js?v=2.7.3"></script>
 </body>
 </html>

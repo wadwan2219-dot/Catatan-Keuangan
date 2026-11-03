@@ -356,6 +356,33 @@ function initTutupBukuModal(userId) {
     if (expenseElem) expenseElem.textContent = `- ${formatRupiah(totalKeluar)}`;
     if (balanceElem) balanceElem.textContent = formatRupiah(stats.saldoKas);
 
+    // Dynamic balance action setup
+    const sisaKas = stats.saldoKas;
+    const rolloverAmounts = modal.querySelectorAll('.val-rollover-amount');
+    const transferAmounts = modal.querySelectorAll('.val-transfer-amount');
+    const zeroNotice = modal.querySelector('#box-balance-zero-notice');
+
+    rolloverAmounts.forEach(el => el.textContent = formatRupiah(Math.max(0, sisaKas)));
+    transferAmounts.forEach(el => el.textContent = formatRupiah(Math.max(0, sisaKas)));
+
+    const radioRollover = modal.querySelector('input[value="rollover"]');
+    const radioTransfer = modal.querySelector('input[value="transfer_to_savings"]');
+    const radioResetZero = modal.querySelector('input[value="reset_kas_zero"]');
+
+    if (sisaKas <= 0) {
+      if (zeroNotice) zeroNotice.classList.remove('hidden');
+      if (radioTransfer) radioTransfer.disabled = true;
+      if (radioResetZero) radioResetZero.disabled = true;
+      if (radioRollover) radioRollover.checked = true;
+    } else {
+      if (zeroNotice) zeroNotice.classList.add('hidden');
+      if (radioTransfer) {
+        radioTransfer.disabled = false;
+        radioTransfer.checked = true;
+      }
+      if (radioResetZero) radioResetZero.disabled = false;
+    }
+
     modal.classList.remove('hidden');
   };
 
@@ -364,17 +391,31 @@ function initTutupBukuModal(userId) {
   if (btnCancel) btnCancel.addEventListener('click', closeModal);
 
   if (btnConfirm) {
-    btnConfirm.addEventListener('click', () => {
+    btnConfirm.addEventListener('click', async () => {
       btnConfirm.disabled = true;
       btnConfirm.textContent = 'Memproses...';
 
       try {
-        closeCurrentCycle(userId, 'Tutup buku manual dari Profil');
-        showToast('Buku periode berhasil ditutup! Siklus baru telah dimulai.', 'success');
+        const selectedRadio = modal.querySelector('input[name="cycle_balance_action"]:checked');
+        const balanceAction = selectedRadio ? selectedRadio.value : 'rollover';
+
+        const stats = calculateUserBalance(userId);
+        const sisaKas = stats.saldoKas;
+
+        await closeCurrentCycle(userId, 'Tutup buku manual dari Profil', balanceAction);
+
+        let successMsg = 'Buku periode berhasil ditutup! Siklus baru telah dimulai.';
+        if (balanceAction === 'transfer_to_savings' && sisaKas > 0) {
+          successMsg = `Buku ditutup! Sisa kas ${formatRupiah(sisaKas)} dialihkan ke Tabungan.`;
+        } else if (balanceAction === 'reset_kas_zero' && sisaKas > 0) {
+          successMsg = `Buku ditutup! Saldo kas berhasil di-reset ke Rp 0.`;
+        }
+        showToast(successMsg, 'success');
+
         closeModal();
         loadCyclePreferences(userId);
       } catch (err) {
-        showToast('Gagal melakukan tutup buku.', 'error');
+        showToast('Gagal melakukan tutup buku: ' + (err.message || ''), 'error');
       } finally {
         btnConfirm.disabled = false;
         btnConfirm.textContent = 'Konfirmasi & Tutup Buku';
